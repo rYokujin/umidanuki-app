@@ -1,0 +1,15 @@
+{
+  "name": "Bujinkan Umidanuki Dôjô",
+  "short_name": "Umidanuki",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0e12",
+  "theme_color": "#1f120d",
+  "icons": [
+    {
+      "src": "sprites/spr_dojo_logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

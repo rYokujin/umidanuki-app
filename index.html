@@ -1,0 +1,2823 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bujinkan Umidanuki Dôjô App</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="sprites/spr_dojo_logo.png">
+    <!-- Lightweight QR Camera Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        :root {
+            --bg-dark: #0d0e12;
+            --bg-card: #181a20;
+            --bg-card-hover: #22252e;
+            --beaver-brown: #9e380e;
+            --beaver-light: #c85220;
+            --accent-gold: #e6b85c;
+            --accent-silver: #cbd5e1;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --success-green: #2ecc71;
+            --danger-red: #e74c3c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #050507;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .app-shell {
+            width: 100%;
+            max-width: 440px;
+            background-color: var(--bg-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 40px rgba(0,0,0,0.85);
+            overflow-x: hidden;
+            padding-bottom: 88px;
+        }
+
+        /* =========================================================
+           LOGIN OVERLAY SCREEN
+           ========================================================= */
+        .login-screen {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at top, #1f120d 0%, #090a0f 70%);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .login-screen.hidden {
+            display: none;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 380px;
+            background: var(--bg-card);
+            border: 1px solid rgba(230, 184, 92, 0.35);
+            border-radius: 20px;
+            padding: 24px 20px;
+            text-align: center;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.8);
+        }
+
+        .input-group {
+            text-align: left;
+            margin-bottom: 14px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .text-input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #101217;
+            border: 1px solid rgba(255,255,255,0.14);
+            color: #fff;
+            font-size: 0.92rem;
+            outline: none;
+            user-select: text;
+        }
+
+        .text-input:focus {
+            border-color: var(--accent-gold);
+        }
+
+        /* Header */
+        .app-header {
+            background: linear-gradient(180deg, #1f120d 0%, var(--bg-dark) 100%);
+            padding: 14px 16px 12px;
+            border-bottom: 1px solid rgba(230, 184, 92, 0.18);
+            position: sticky;
+            top: 0;
+            z-index: 25;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .dojo-logo-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-gold);
+            background: #14161d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+            flex-shrink: 0;
+        }
+
+        .user-info h1 {
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+
+        .user-info span {
+            font-size: 0.72rem;
+            color: var(--accent-gold);
+        }
+
+        .logout-btn {
+            font-size: 0.68rem;
+            padding: 5px 10px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: var(--text-muted);
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .resource-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .res-box {
+            background: var(--bg-card);
+            border-radius: 10px;
+            padding: 7px 11px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .res-label {
+            font-size: 0.69rem;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .res-label strong {
+            color: var(--text-main);
+            font-size: 0.78rem;
+        }
+
+        .res-val {
+            font-size: 0.98rem;
+            font-weight: 800;
+            color: var(--accent-gold);
+        }
+
+        /* Views */
+        .view-section {
+            display: none;
+            padding: 14px;
+            animation: fadeIn 0.22s ease;
+        }
+
+        .view-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 50-Stage Dam & Dojo Scene Card */
+        .scene-card {
+            background: linear-gradient(180deg, #0f172a 0%, #1e3a5f 62%, #122b40 100%);
+            border-radius: 16px;
+            border: 1px solid rgba(230, 184, 92, 0.3);
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+
+        .scene-header {
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.45);
+        }
+
+        .scene-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+        }
+
+        .scene-level-badge {
+            font-size: 0.74rem;
+            background: var(--beaver-brown);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .svg-stage {
+            width: 100%;
+            height: 235px;
+            display: block;
+        }
+
+        .beaver-group {
+            animation: breathe 3s ease-in-out infinite;
+            transform-origin: center bottom;
+            cursor: pointer;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-3px); }
+        }
+
+        .sakura-petal {
+            animation: fallPetal 6s linear infinite;
+        }
+
+        @keyframes fallPetal {
+            0% { transform: translate(0, -10px) rotate(0deg); opacity: 0.9; }
+            100% { transform: translate(-40px, 160px) rotate(220deg); opacity: 0; }
+        }
+
+        .stage-banner {
+            background: rgba(12, 14, 18, 0.92);
+            border-top: 1px solid rgba(230, 184, 92, 0.2);
+            padding: 10px 14px;
+        }
+
+        .stage-phase-name {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--accent-gold);
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .stage-desc-text {
+            font-size: 0.82rem;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        /* Cards & Buttons */
+        .card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .card-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-sub {
+            font-size: 0.77rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 10px;
+            background: #0d0e12;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 6px 0 10px;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--beaver-brown), var(--accent-gold));
+            width: 0%;
+            transition: width 0.35s ease;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: transform 0.1s ease, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--beaver-light), var(--beaver-brown));
+            color: #fff;
+        }
+
+        .btn-gold {
+            background: linear-gradient(135deg, #f0c975, #c99632);
+            color: #15120c;
+        }
+
+        .btn-outline {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(230, 184, 92, 0.35);
+            color: var(--accent-gold);
+        }
+
+        .btn-outline.equipped {
+            background: rgba(46, 204, 113, 0.18);
+            border-color: var(--success-green);
+            color: #fff;
+        }
+
+        /* Top 3 Leaderboard Columns */
+        .podium-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .podium-col {
+            background: #12141a;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        .podium-col-title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding-bottom: 4px;
+        }
+
+        .podium-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.76rem;
+            padding: 4px 0;
+        }
+
+        .podium-xp {
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* =========================================================
+           NAFUDAKAKE (4 ROWS, LEFT-TO-RIGHT DESCENDING SORT)
+           ========================================================= */
+        .nafudakake-board {
+            background: linear-gradient(180deg, #b88352 0%, #9c6839 100%);
+            border: 6px solid #7a4e25;
+            border-radius: 8px;
+            box-shadow: inset 0 0 18px rgba(0,0,0,0.55), 0 8px 20px rgba(0,0,0,0.5);
+            padding: 6px;
+            margin-bottom: 14px;
+        }
+
+        .nafuda-row {
+            background: repeating-linear-gradient(90deg, #c99362 0px, #c28b59 40px, #cfa072 80px);
+            border-top: 4px solid #6e441f;
+            border-bottom: 6px solid #633c1a;
+            min-height: 150px;
+            margin-bottom: 6px;
+            padding: 6px 8px;
+            display: flex;
+            align-items: stretch;
+            justify-content: flex-start;
+            gap: 5px;
+            overflow-x: auto;
+            position: relative;
+            box-shadow: inset 0 6px 10px rgba(0,0,0,0.35);
+        }
+
+        .nafuda-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .nafuda-row::after {
+            content: "✖   ✖";
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.45);
+            font-size: 0.7rem;
+            letter-spacing: 6px;
+            pointer-events: none;
+        }
+
+        .nafuda-plaque {
+            width: 42px;
+            min-width: 42px;
+            height: 134px;
+            border-radius: 2px;
+            box-shadow: 2px 3px 6px rgba(0,0,0,0.45);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 2px 4px;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.15s ease;
+            z-index: 2;
+        }
+
+        .nafuda-plaque:hover {
+            transform: translateY(-3px);
+        }
+
+        .wood-standard {
+            background: linear-gradient(180deg, #f3dec3 0%, #dfbe96 100%);
+            border: 1px solid #96693e;
+            color: #1a1410;
+        }
+
+        .wood-yakisugi {
+            background: repeating-linear-gradient(85deg, #1c1917 0px, #292524 6px, #141210 12px, #2f2723 18px);
+            border: 1px solid #78350f;
+            color: #f3f4f6;
+        }
+
+        .wood-ebony {
+            background: linear-gradient(160deg, #181311 0%, #090706 55%, #1f1815 100%);
+            border: 1px solid #44403c;
+            color: #f3f4f6;
+        }
+
+        .nafuda-plaque.rank-divider {
+            background: linear-gradient(180deg, #e7cba8 0%, #d4b187 100%);
+            border: 1px solid #78502b;
+            color: #1a1410;
+            cursor: default;
+        }
+
+        .nafuda-plaque.own-plaque {
+            outline: 2px solid var(--accent-gold);
+            box-shadow: 0 0 12px rgba(230, 184, 92, 0.85);
+        }
+
+        .ink-standard-light { color: #1a1410 !important; }
+        .ink-standard-dark { color: #e5e7eb !important; }
+        .ink-gold { color: #fbbf24 !important; text-shadow: 0 1px 4px rgba(245, 158, 11, 0.45); }
+        .ink-silver { color: #e2e8f0 !important; text-shadow: 0 1px 4px rgba(203, 213, 225, 0.5); }
+
+        .nafuda-jp {
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2;
+        }
+
+        /* Pure Authentic Belt Colors (Black, Green, Red, Pure Yellow, White) */
+        .nafuda-stripe {
+            width: 100%;
+            height: 9px;
+            z-index: 2;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.42rem;
+            font-weight: 900;
+        }
+
+        .stripe-dan {
+            background: #111111;
+            border-top: 1px solid #000000;
+            border-bottom: 1px solid #000000;
+            color: #ffffff;
+        }
+
+        .stripe-green {
+            background: #16a34a;
+            border-top: 1px solid #14532d;
+            border-bottom: 1px solid #14532d;
+            color: #ffffff;
+        }
+
+        .stripe-red {
+            background: #dc2626;
+            border-top: 1px solid #7f1d1d;
+            border-bottom: 1px solid #7f1d1d;
+            color: #ffffff;
+        }
+
+        .stripe-yellow {
+            background: #facc15;
+            border-top: 1px solid #ca8a04;
+            border-bottom: 1px solid #ca8a04;
+            color: #713f12;
+        }
+
+        .stripe-white {
+            background: #f8fafc;
+            border-top: 1px solid #94a3b8;
+            border-bottom: 1px solid #94a3b8;
+            color: #111111;
+        }
+
+        .nafuda-stamp-slot {
+            width: 100%;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 1px 0;
+            z-index: 3;
+        }
+
+        .nafuda-romaji {
+            font-size: 0.42rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: center;
+            line-height: 1.05;
+            z-index: 2;
+            width: 100%;
+        }
+
+        .cosmetic-group-title {
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+            margin: 10px 0 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .cosmetic-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .shuriken-canvas-wrap {
+            width: 100%;
+            height: 220px;
+            background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%);
+            border: 1px solid rgba(230, 184, 92, 0.35);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            margin: 8px 0;
+            touch-action: none;
+        }
+
+        #shuriken_canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            cursor: crosshair;
+        }
+
+        .quiz-question-box {
+            background: #12141a;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 14px;
+            margin: 8px 0 12px;
+        }
+
+        .quiz-opt-btn {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-main);
+            padding: 11px 13px;
+            border-radius: 10px;
+            text-align: left;
+            font-size: 0.84rem;
+            margin-bottom: 7px;
+            cursor: pointer;
+        }
+
+        .quiz-opt-btn.correct { background: rgba(46, 204, 113, 0.25); border-color: var(--success-green); }
+        .quiz-opt-btn.wrong { background: rgba(231, 76, 60, 0.25); border-color: var(--danger-red); }
+
+        .tag-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin: 8px 0 12px;
+            max-height: 185px;
+            overflow-y: auto;
+            padding: 4px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+
+        .tag-chip {
+            padding: 5px 9px;
+            border-radius: 14px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: #12141a;
+            border: 1px solid rgba(255,255,255,0.12);
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        .tag-chip.selected {
+            background: rgba(158, 56, 14, 0.4);
+            border-color: var(--accent-gold);
+            color: #fff;
+        }
+
+        .unit-btn-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .unit-btn {
+            padding: 8px 6px;
+            font-size: 0.72rem;
+        }
+
+        .unit-btn.active-unit {
+            background: rgba(158, 56, 14, 0.4);
+            border-color: var(--accent-gold);
+            color: #fff;
+        }
+
+        /* Camera QR Scanner Box */
+        #qr_camera_reader {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 10px;
+            display: none;
+            border: 1px solid var(--accent-gold);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.84);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+            z-index: 90;
+        }
+
+        .modal-overlay.open { display: flex; }
+
+        .modal-sheet {
+            width: 100%;
+            max-width: 440px;
+            max-height: 90vh;
+            border-top: 4px solid var(--accent-gold);
+            border-radius: 22px 22px 0 0;
+            padding: 18px 16px 28px;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 -10px 35px rgba(0,0,0,0.8);
+        }
+
+        .modal-nafuda-watermark {
+            position: absolute;
+            right: 14px;
+            top: 55px;
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            font-size: 4.2rem;
+            font-weight: 900;
+            opacity: 0.13;
+            pointer-events: none;
+            z-index: 0;
+            letter-spacing: 6px;
+        }
+
+        .modal-content-layer {
+            position: relative;
+            z-index: 2;
+        }
+
+        .nafuda-glass-card {
+            background: rgba(14, 16, 21, 0.82);
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+            color: #f3f4f6;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .stat-box {
+            background: rgba(14, 16, 21, 0.82);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .stat-num { font-size: 1.15rem; font-weight: 800; color: var(--accent-gold); }
+        .stat-lbl { font-size: 0.68rem; color: #d1d5db; margin-top: 2px; }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            max-width: 440px;
+            background: rgba(15, 16, 20, 0.96);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255,255,255,0.08);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            padding: 7px 4px 11px;
+            z-index: 40;
+        }
+
+        .nav-item {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .nav-item.active { color: var(--accent-gold); }
+        .nav-icon { font-size: 1.2rem; }
+
+        .toast {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: #1f2430;
+            border: 1px solid var(--accent-gold);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 25px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.7);
+            transition: transform 0.3s ease;
+            z-index: 250;
+            white-space: nowrap;
+        }
+
+        .toast.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+    <div id="ui_toast" class="toast">Ganbatte!</div>
+
+    <!-- =================================================================
+         LOGIN OVERLAY (DOJO PASS)
+         ================================================================= -->
+    <div id="ui_login_screen" class="login-screen">
+        <div class="login-card">
+            <div style="width: 64px; height: 64px; margin: 0 auto 10px;">
+                <svg viewBox="0 0 100 100" width="64" height="64">
+                    <circle cx="50" cy="50" r="46" fill="#9e380e" stroke="#e6b85c" stroke-width="4"/>
+                    <path d="M24 36 C30 26, 42 33, 44 42 C34 44, 26 41, 24 36 Z" fill="#080808"/>
+                    <circle cx="32" cy="35" r="3" fill="#fff"/>
+                    <path d="M76 36 C70 26, 58 33, 56 42 C66 44, 74 41, 76 36 Z" fill="#080808"/>
+                    <circle cx="68" cy="35" r="3" fill="#fff"/>
+                    <ellipse cx="50" cy="46" rx="6" ry="3.5" fill="#080808"/>
+                    <path d="M22 54 Q50 60 78 54 L72 86 Q50 81 28 86 Z" fill="#0a0a0c" stroke="#fff" stroke-width="2"/>
+                    <rect x="44" y="54" width="6" height="32" fill="#fff" stroke="#080808" stroke-width="1"/>
+                    <rect x="50" y="54" width="6" height="32" fill="#fff" stroke="#080808" stroke-width="1"/>
+                    <rect x="44" y="66" width="12" height="7" fill="#9e380e" stroke="#fff" stroke-width="1"/>
+                    <text x="29" y="68" fill="#fff" font-size="10" font-weight="bold">武</text>
+                    <text x="29" y="80" fill="#fff" font-size="10" font-weight="bold">神</text>
+                    <text x="60" y="68" fill="#fff" font-size="10" font-weight="bold">海</text>
+                    <text x="60" y="80" fill="#fff" font-size="10" font-weight="bold">狸</text>
+                </svg>
+            </div>
+            <h2 style="font-size: 1.15rem; color: var(--accent-gold); margin-bottom: 4px;">Bujinkan Umidanuki Dôjô</h2>
+            <p style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 18px;">
+                Melde dich mit deinem Vornamen und deiner 4-stelligen Dôjô-PIN an.
+            </p>
+
+            <div class="input-group">
+                <label>Google Apps Script Web-App-URL (/exec)</label>
+                <input type="text" id="input_api_url" class="text-input" placeholder="https://script.google.com/macros/s/.../exec">
+            </div>
+
+            <div class="input-group">
+                <label>Dein Vorname</label>
+                <input type="text" id="input_first_name" class="text-input" placeholder="z. B. David, Isabel, Pablo, Maira...">
+            </div>
+
+            <div class="input-group">
+                <label>Deine 4-stellige Dôjô-PIN (Spalte U)</label>
+                <input type="password" id="input_pin_code" class="text-input" placeholder="••••" maxlength="6" inputmode="numeric">
+            </div>
+
+            <button class="btn btn-primary" id="btn_login_submit" onclick="PerformLiveSheetLogin()" style="margin-top: 6px;">
+                🥋 Jetzt im Dôjô anmelden
+            </button>
+
+            <button class="btn btn-outline" onclick="StartOfflineDemoMode()" style="margin-top: 10px; font-size: 0.74rem;">
+                🔍 Ohne Server im Offline-Demo-Modus öffnen
+            </button>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-top">
+            <div class="user-badge" onclick="OpenMemberDashboard(active_member_id)">
+                <div class="dojo-logo-avatar">
+                    <img src="sprites/spr_dojo_logo.png" alt="Umidanuki Logo" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+                <div class="user-info">
+                    <h1 id="ui_header_name">David (Mein Nafuda)</h1>
+                    <span id="ui_header_rank">9. Dan (Schwarz) • Tippen für Statistik</span>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="LogoutDojoUser()">Wechseln 🚪</button>
+        </div>
+
+        <div class="resource-bar">
+            <div class="res-box">
+                <div class="res-label">
+                    <strong>🪵 Taiden XP (体伝)</strong>
+                    <span>Körperliche Überlieferung</span>
+                </div>
+                <span class="res-val" id="ui_taiden_xp">25</span>
+            </div>
+            <div class="res-box">
+                <div class="res-label">
+                    <strong>📜 Kuden XP (口伝)</strong>
+                    <span>Mündliche Überlieferung</span>
+                </div>
+                <span class="res-val" id="ui_kuden_xp">950</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- =================================================================
+         TAB 1: DÔJÔ DAMM (50 STUFEN & MONATLICHE TOP 3)
+         ================================================================= -->
+    <section id="view_home" class="view-section active">
+        <div class="scene-card">
+            <div class="scene-header">
+                <span class="scene-title">海狸道場 • DÔJÔ DAMM</span>
+                <span class="scene-level-badge" id="ui_dam_level_badge">Stufe 12 / 50</span>
+            </div>
+	    
+	    <!-- Custom Sprite Image Container (Hidden automatically if PNG does not exist yet) -->
+<img id="ui_custom_dam_sprite" src="" alt="Dôjô Damm" style="width: 100%; height: 235px; object-fit: cover; display: none;" />
+	
+            <!-- 50-Stage SVG Landscape -->
+            <svg class="svg-stage" viewBox="0 0 420 250" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#0b132b"/>
+                        <stop offset="65%" stop-color="#1c2541"/>
+                        <stop offset="100%" stop-color="#3a506b"/>
+                    </linearGradient>
+                </defs>
+                <rect width="420" height="165" fill="url(#skyGrad)" />
+                <circle cx="355" cy="42" r="24" fill="#fef3c7" opacity="0.85" />
+                <polygon points="0,155 90,85 190,155" fill="#111a2e" />
+                <polygon points="210,155 310,75 420,155" fill="#152238" />
+
+                <!-- Lvl 26-35: Castle -->
+                <g id="layer_castle" opacity="0">
+                    <polygon points="145,120 275,120 290,155 130,155" fill="#4b5563" />
+                    <g id="castle_tier1" opacity="0">
+                        <rect x="160" y="92" width="100" height="28" fill="#f3f4f6" />
+                        <path d="M145 94 Q210 82 275 94 L268 86 Q210 76 152 86 Z" fill="#1f2937" />
+                    </g>
+                    <g id="castle_tier2" opacity="0">
+                        <rect x="175" y="68" width="70" height="24" fill="#ffffff" />
+                        <path d="M162 70 Q210 58 258 70 L250 63 Q210 54 170 63 Z" fill="#1f2937" />
+                    </g>
+                    <g id="castle_top" opacity="0">
+                        <rect x="188" y="46" width="44" height="22" fill="#ffffff" />
+                        <path d="M174 48 Q210 35 246 48 L238 40 Q210 30 182 40 Z" fill="#111827" />
+                        <circle cx="180" cy="39" r="3" fill="#fbbf24" />
+                        <circle cx="240" cy="39" r="3" fill="#fbbf24" />
+                    </g>
+                </g>
+
+                <!-- Lvl 16-20: Torii Row -->
+                <g id="layer_torii_row" opacity="0">
+                    <g id="torii_1" opacity="0" transform="translate(20, 92) scale(0.65)">
+                        <rect x="12" y="12" width="6" height="55" fill="#dc2626"/><rect x="52" y="12" width="6" height="55" fill="#dc2626"/>
+                        <path d="M2 10 Q35 2 68 10 L65 17 Q35 10 5 17 Z" fill="#ef4444"/><rect x="8" y="24" width="54" height="5" fill="#b91c1c"/>
+                    </g>
+                    <g id="torii_2" opacity="0" transform="translate(42, 98) scale(0.8)">
+                        <rect x="12" y="12" width="6" height="55" fill="#dc2626"/><rect x="52" y="12" width="6" height="55" fill="#dc2626"/>
+                        <path d="M2 10 Q35 2 68 10 L65 17 Q35 10 5 17 Z" fill="#ef4444"/><rect x="8" y="24" width="54" height="5" fill="#b91c1c"/>
+                    </g>
+                    <g id="torii_3" opacity="0" transform="translate(68, 102) scale(0.95)">
+                        <rect x="12" y="12" width="6" height="55" fill="#b91c1c"/><rect x="52" y="12" width="6" height="55" fill="#b91c1c"/>
+                        <path d="M2 10 Q35 2 68 10 L65 17 Q35 10 5 17 Z" fill="#dc2626"/><rect x="8" y="24" width="54" height="5" fill="#991b1b"/>
+                    </g>
+                </g>
+
+                <!-- Lvl 20-25: Outdoor Training -->
+                <g id="layer_outdoor_training" opacity="0">
+                    <g id="out_tameshigiri" opacity="0"><rect x="305" y="138" width="12" height="6" fill="#5c3a21" /><rect x="309" y="114" width="4" height="25" fill="#eab308" /></g>
+                    <g id="out_shuriken" opacity="0"><rect x="328" y="118" width="4" height="28" fill="#5c3a21" /><circle cx="330" cy="122" r="9" fill="#fef08a" stroke="#b91c1c" stroke-width="2" /><circle cx="330" cy="122" r="3" fill="#b91c1c" /></g>
+                    <g id="out_poles" opacity="0"><rect x="348" y="132" width="4" height="16" fill="#854d0e" /><rect x="355" y="126" width="4" height="22" fill="#a16207" /><rect x="362" y="130" width="4" height="18" fill="#854d0e" /></g>
+                    <g id="out_archery" opacity="0"><circle cx="385" cy="134" r="10" fill="#fff" stroke="#111" stroke-width="2" /><circle cx="385" cy="134" r="5" fill="#2563eb" /><circle cx="385" cy="134" r="2" fill="#eab308" /></g>
+                </g>
+
+                <!-- Lvl 41-50: Sakura Garden -->
+                <g id="layer_sakura_garden" opacity="0">
+                    <path d="M22 155 Q28 125 18 100" stroke="#4a2c18" stroke-width="6" fill="none" />
+                    <circle cx="20" cy="95" r="22" fill="#f472b6" opacity="0.85" /><circle cx="38" cy="102" r="16" fill="#fbcfe8" opacity="0.9" />
+                    <path d="M398 155 Q390 120 402 95" stroke="#4a2c18" stroke-width="6" fill="none" />
+                    <circle cx="395" cy="90" r="24" fill="#f472b6" opacity="0.85" /><circle cx="378" cy="98" r="17" fill="#fbcfe8" opacity="0.9" />
+                </g>
+
+                <!-- Water & Island -->
+                <rect x="0" y="152" width="420" height="98" fill="#133b5c" />
+                <path d="M0 168 Q70 162 140 168 T280 168 T420 168" stroke="#1e5f8a" stroke-width="2.5" fill="none" />
+                <g id="out_meditation_island" opacity="0">
+                    <ellipse cx="62" cy="195" rx="34" ry="11" fill="#374151" /><ellipse cx="62" cy="192" rx="28" ry="8" fill="#15803d" />
+                    <circle cx="52" cy="182" r="7" fill="#166534" /><circle cx="70" cy="184" r="4" fill="#e6b85c" />
+                </g>
+
+                <!-- Lvl 1-10: Dam & Shrine Lodge -->
+                <g id="dam_lvl_1_2"><path d="M135 172 L175 165 L220 173 L265 166 L290 174" stroke="#654321" stroke-width="4" fill="none" /></g>
+                <g id="dam_lvl_3_5" opacity="0">
+                    <ellipse cx="145" cy="172" rx="48" ry="9" fill="#5c3317" /><ellipse cx="275" cy="172" rx="48" ry="9" fill="#6e3d1c" />
+                    <ellipse cx="210" cy="176" rx="75" ry="12" fill="#7c4722" />
+                </g>
+                <g id="layer_shrine_lodge" opacity="0">
+                    <path d="M165 168 Q210 132 255 168 Z" fill="#854d0e" stroke="#422006" stroke-width="2" />
+                    <path id="shrine_roof" d="M152 152 Q210 128 268 152" stroke="#b45309" stroke-width="5" fill="none" opacity="0" />
+                </g>
+
+                <!-- Lvl 11-15: Dojo & NiO -->
+                <g id="layer_dojo_hall" opacity="0">
+                    <rect x="155" y="128" width="110" height="40" fill="#271c19" stroke="#d97706" stroke-width="1.5" />
+                    <path d="M140 130 Q210 105 280 130 L272 118 Q210 98 148 118 Z" fill="#18181b" stroke="#e6b85c" stroke-width="1" />
+                    <rect x="188" y="120" width="44" height="12" fill="#f3dec3" stroke="#78350f" stroke-width="1" />
+                    <text x="192" y="129" fill="#111" font-size="8" font-weight="bold">海狸道場</text>
+                    <g id="nio_statues" opacity="0">
+                        <rect x="138" y="138" width="12" height="28" rx="3" fill="#991b1b" stroke="#fbbf24" stroke-width="1" />
+                        <rect x="270" y="138" width="12" height="28" rx="3" fill="#991b1b" stroke="#fbbf24" stroke-width="1" />
+                    </g>
+                </g>
+
+                <!-- Lvl 36-40: Armor & Nana Korobi -->
+                <g id="layer_decor_spirit" opacity="0">
+                    <polygon points="122,165 134,165 131,146 125,146" fill="#1e293b" stroke="#eab308" stroke-width="1" />
+                    <g id="decor_nanakorobi" opacity="0">
+                        <rect x="292" y="134" width="18" height="42" fill="#d9a05b" stroke="#5c3a21" stroke-width="1.5" />
+                        <text x="297" y="143" fill="#111" font-size="6.5" font-weight="bold">七</text>
+                        <text x="297" y="151" fill="#111" font-size="6.5" font-weight="bold">転</text>
+                        <text x="297" y="159" fill="#111" font-size="6.5" font-weight="bold">八</text>
+                        <text x="297" y="167" fill="#111" font-size="6.5" font-weight="bold">起</text>
+                    </g>
+                </g>
+
+                <!-- Umidanuki Beaver -->
+                <g class="beaver-group" transform="translate(10, 62) scale(0.95)">
+                    <circle cx="200" cy="112" r="42" fill="#9e380e" stroke="#080808" stroke-width="4" />
+                    <path d="M170 96 C177 86, 190 93, 192 103 C182 105, 172 102, 170 96 Z" fill="#080808" />
+                    <circle cx="179" cy="95" r="2.8" fill="#ffffff" />
+                    <path d="M230 96 C223 86, 210 93, 208 103 C218 105, 228 102, 230 96 Z" fill="#080808" />
+                    <circle cx="221" cy="95" r="2.8" fill="#ffffff" />
+                    <ellipse cx="200" cy="107" rx="6.5" ry="3.8" fill="#080808" />
+                    <path d="M168 116 Q200 122 232 116 L226 150 Q200 145 174 150 Z" fill="#0a0a0c" stroke="#ffffff" stroke-width="1.6" />
+                    <rect x="194" y="116" width="6" height="35" fill="#ffffff" stroke="#080808" stroke-width="1" />
+                    <rect x="200" y="116" width="6" height="35" fill="#ffffff" stroke="#080808" stroke-width="1" />
+                    <rect x="194" y="129" width="12" height="8" fill="#9e380e" stroke="#ffffff" stroke-width="1" />
+                    <text x="177" y="131" fill="#ffffff" font-size="9.5" font-weight="bold">武</text>
+                    <text x="177" y="143" fill="#ffffff" font-size="9.5" font-weight="bold">神</text>
+                    <text x="212" y="131" fill="#ffffff" font-size="9.5" font-weight="bold">海</text>
+                    <text x="212" y="143" fill="#ffffff" font-size="9.5" font-weight="bold">狸</text>
+                </g>
+
+                <g id="layer_sakura_petals" opacity="0">
+                    <circle class="sakura-petal" cx="120" cy="20" r="3" fill="#fbcfe8" />
+                    <circle class="sakura-petal" cx="240" cy="5" r="2.5" fill="#f472b6" style="animation-delay: 1.5s;" />
+                </g>
+            </svg>
+
+            <div class="stage-banner">
+                <div class="stage-phase-name" id="ui_stage_phase">PHASE 3: DAS UMIDANUKI DÔJÔ</div>
+                <div class="stage-desc-text" id="ui_stage_title">Stufe 12: Dôjô-Haupthalle über der Biberburg errichtet</div>
+            </div>
+        </div>
+
+        <!-- Cooperative Contribution Pool -->
+        <div class="card">
+            <div class="card-title">
+                <span>🤝 Gemeinschafts-Dammbau</span>
+                <span style="color: var(--accent-gold); font-size: 0.78rem;" id="ui_dam_pool_progress">6 / 10 Taiden XP</span>
+            </div>
+            <p class="card-sub" style="margin-bottom: 6px;">
+                Alle Buyû zahlen gemeinsam ein! Bei <strong>10 Taiden XP</strong> steigt der Dôjô Damm für alle auf die nächste Stufe.
+            </p>
+            <div class="progress-track">
+                <div class="progress-fill" id="ui_dam_pool_bar" style="width: 60%;"></div>
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" onclick="ContributeTaidenToDam(1)">
+                    🪵 +1 Taiden XP einzahlen
+                </button>
+                <button class="btn btn-gold" onclick="ContributeTaidenToDam(5)">
+                    🪵 +5 Taiden XP einzahlen
+                </button>
+            </div>
+
+            <!-- Trainer-Only Preview Slider -->
+            <div id="ui_trainer_dam_preview_box" style="display: none; border-top: 1px solid rgba(230,184,92,0.25); margin-top: 12px; padding-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 0.72rem; color: var(--accent-gold); font-weight: 700;">🔒 Shidôshi-Vorschau (Nur für David & Isy sichtbar)</span>
+                    <button class="btn-outline" style="padding: 3px 8px; border-radius: 6px; font-size: 0.66rem; cursor: pointer;" onclick="ResetDamToLiveStage()">
+                        Zurück zu Live-Stufe
+                    </button>
+                </div>
+                <input type="range" min="1" max="50" value="12" id="ui_stage_slider" style="width: 100%; accent-color: var(--accent-gold);" oninput="PreviewDamVisualStageOnly(this.value)">
+            </div>
+        </div>
+
+        <!-- Monthly Top 3 Dam Builders -->
+        <div class="card">
+            <div class="card-title">
+                <span>🏆 Top 3 Dammbauer des Monats</span>
+            </div>
+            <div class="podium-grid">
+                <div class="podium-col">
+                    <div class="podium-col-title">🔥 Aktueller Monat</div>
+                    <div id="ui_top3_current"></div>
+                </div>
+                <div class="podium-col">
+                    <div class="podium-col-title">🏛️ Letzter Monat</div>
+                    <div id="ui_top3_last"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =================================================================
+         TAB 2: 4-ROW NAFUDAKAKE (NO TOP EXPLANATION CARD -> MORE SPACE!)
+         ================================================================= -->
+    <section id="view_nafuda" class="view-section">
+        <!-- 1.) Top Explanation Box removed so all 4 Nafudakake rows sit directly at the top! -->
+        <div class="nafudakake-board">
+            <!-- Row 1: Shidoshi (15. Dan - 1. Dan) -->
+            <div class="nafuda-row" id="nafuda_row_1"></div>
+            <!-- Row 2: Senpai & Kohai (1. Kyu - 9. Kyu) -->
+            <div class="nafuda-row" id="nafuda_row_2"></div>
+            <!-- Row 3: Kids with Yellow Belt (Jodan > Chudan > Gedan) -->
+            <div class="nafuda-row" id="nafuda_row_3"></div>
+            <!-- Row 4: White Belt (Sorted by Entry Date) -->
+            <div class="nafuda-row" id="nafuda_row_4"></div>
+        </div>
+
+        <!-- Monthly Nafuda Customization Workshop -->
+        <div class="card" style="border-color: rgba(230, 184, 92, 0.35);">
+            <div class="card-title">
+                <span>🎨 Nafuda-Werkstatt (Monats-Dekor)</span>
+                <span style="font-size: 0.72rem; color: var(--accent-gold);">⏳ Gültig: 1 Monat</span>
+            </div>
+            <p class="card-sub" style="margin-bottom: 8px;">
+                Veredle dein Nafuda für den aktuellen Monat mit deinen <strong>Kuden XP (口伝)</strong>:
+            </p>
+
+            <div class="cosmetic-group-title">
+                <span>1. Edles Holz (150 Kuden XP / Monat)</span>
+                <span id="ui_wood_status" style="color: var(--text-muted);">Standard-Zeder</span>
+            </div>
+            <div class="cosmetic-grid">
+                <button class="btn btn-outline" id="btn_wood_yakisugi" onclick="BuyNafudaCosmetic('wood', 'yakisugi', 150)">
+                    🔥 Yakisugi-Holz
+                </button>
+                <button class="btn btn-outline" id="btn_wood_ebony" onclick="BuyNafudaCosmetic('wood', 'ebony', 150)">
+                    🌑 Ebenholz
+                </button>
+            </div>
+
+            <div class="cosmetic-group-title">
+                <span>2. Schriftzeichen (120 Kuden XP / Monat)</span>
+                <span id="ui_ink_status" style="color: var(--text-muted);">Klassisch</span>
+            </div>
+            <div class="cosmetic-grid">
+                <button class="btn btn-outline" id="btn_ink_gold" onclick="BuyNafudaCosmetic('ink', 'gold', 120)">
+                    ✨ Goldene Schrift
+                </button>
+                <button class="btn btn-outline" id="btn_ink_silver" onclick="BuyNafudaCosmetic('ink', 'silver', 120)">
+                    🥈 Silberne Schrift
+                </button>
+            </div>
+
+            <div class="cosmetic-group-title">
+                <span>3. Siegel mittig unter Gürtel (100 Kuden XP / Monat)</span>
+                <span id="ui_stamp_status" style="color: var(--text-muted);">Kein Siegel</span>
+            </div>
+            <div class="cosmetic-grid">
+                <button class="btn btn-outline" id="btn_stamp_dojo" onclick="BuyNafudaCosmetic('stamp', 'dojo_stamp', 100)">
+                    🦫 Roter Dôjô-Stempel
+                </button>
+                <button class="btn btn-outline" id="btn_stamp_bujin" onclick="BuyNafudaCosmetic('stamp', 'bujin_logo', 100)">
+                    💮 Bujin-Logo (武神)
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- =================================================================
+         TAB 3: KUDEN (1. QUIZ (+10 XP) -> 2. 100:1 TAUSCH -> 3. SHURIKEN)
+         ================================================================= -->
+    <section id="view_quiz" class="view-section">
+        <div class="card" style="border-color: rgba(230, 184, 92, 0.4);">
+            <div class="card-title">
+                <span>📜 Kuden-Quiz (Wissensprüfung)</span>
+                <span style="color: var(--accent-gold); font-size: 0.72rem;" id="ui_quiz_cat">Japanisch & Kihon</span>
+            </div>
+            <p class="card-sub" style="margin-bottom: 6px;">
+                Stärke dein Wissen für das Training! Jede richtige Antwort bringt dir <strong>+10 Kuden XP (口伝)</strong>.
+            </p>
+            <div class="quiz-question-box">
+                <p id="ui_quiz_question" style="font-weight: 600; font-size: 0.92rem; line-height: 1.45;"></p>
+            </div>
+            <div id="ui_quiz_options"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>🔄 Kuden in Taiden umwandeln (100 : 1)</span>
+                <span style="color: var(--accent-gold); font-size: 0.78rem;"><span id="ui_exchange_kuden">450</span> 📜 verfügbar</span>
+            </div>
+            <p class="card-sub">
+                Tausche je <strong>100 Kuden XP</strong> in <strong>1 Taiden XP (🪵)</strong> um, um damit den gemeinsamen Dôjô Damm weiter auszubauen:
+            </p>
+            <button class="btn btn-gold" onclick="ExchangeKudenToTaiden()">
+                🪵 100 Kuden XP ➔ +1 Taiden XP tauschen
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="card-title">
+                <span>🥷 Shuriken-Holzspalter (Tôgakure Ryû)</span>
+                <span style="font-size: 0.74rem; color: var(--accent-gold);">Einsatz: 50 Kuden XP</span>
+            </div>
+            <p class="card-sub" style="margin-bottom: 6px;">
+                Spalte das fliegende Holz im Flug!<br>
+                • Ab <strong>15 Treffern</strong>: <strong>50 Kuden XP</strong> zurück<br>
+                • Ab <strong>20 Treffern</strong>: <strong>100 Kuden XP</strong> Gewinn!
+            </p>
+
+            <div class="shuriken-canvas-wrap">
+                <canvas id="shuriken_canvas" width="380" height="220"></canvas>
+                <div id="ui_arena_overlay" style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(13,14,18,0.86); padding: 14px; text-align: center;">
+                    <div style="font-size: 0.86rem; font-weight: 700; margin-bottom: 8px; line-height: 1.4;" id="ui_arena_msg">
+                        Triff mindestens 15 Hölzer (50 XP) oder 20+ Hölzer (100 XP)!
+                    </div>
+                    <button class="btn btn-primary" style="width: auto; padding: 9px 18px;" onclick="StartShurikenWoodGame()">
+                        🎯 Runde starten (-50 Kuden XP)
+                    </button>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; font-size: 0.76rem; color: var(--text-muted);">
+                <span>⏱️ Zeit: <strong id="ui_game_timer" style="color: #fff;">20s</strong></span>
+                <span>🪵 Gespalten: <strong id="ui_game_hits" style="color: var(--accent-gold);">0</strong> (Ziel: 15 / 20+)</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- =================================================================
+         TAB 4: CAMERA QR SCANNER & SHIDOSHI QR GENERATOR
+         ================================================================= -->
+    <section id="view_checkin" class="view-section">
+        <div class="card">
+            <div class="card-title">📷 Dôjô Check-In (Taiden XP)</div>
+            <p class="card-sub">
+                Scanne nach dem Training den QR-Code bei David oder Isy mit deiner Handykamera (oder gib den Code ein), um dir <strong>+10 Taiden XP</strong> zu sichern:
+            </p>
+
+            <div id="qr_camera_reader"></div>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <button class="btn btn-primary" id="btn_toggle_camera" onclick="ToggleCameraQrScanner()">
+                    📷 QR-Code mit Kamera scannen
+                </button>
+            </div>
+
+            <div class="input-group" style="margin-bottom: 8px;">
+                <label style="font-size: 0.68rem;">Oder Code manuell eingeben:</label>
+                <input type="text" id="input_scan_token" class="text-input" placeholder="z. B. TAIDEN-1234" style="text-align: center; font-weight: 800; letter-spacing: 1px;">
+            </div>
+            <button class="btn btn-gold" onclick="SubmitTrainingCheckInCode()">
+                ⚡ Code manuell einlösen (+10 Taiden XP)
+            </button>
+        </div>
+
+        <div class="card" id="ui_shidoshi_generator_card" style="border-color: rgba(230, 184, 92, 0.35);">
+            <div class="card-title">🥋 Shidôshi QR-Generator (David & Isy)</div>
+            <p class="card-sub">1. Wähle die Trainingseinheit:</p>
+            <div class="unit-btn-grid">
+                <button class="btn btn-outline unit-btn active-unit" id="unit_btn_senpai" onclick="SelectTrainingUnit('Senpai-Training', this)">
+                    Dienstag<br>Senpai
+                </button>
+                <button class="btn btn-outline unit-btn" id="unit_btn_fitness" onclick="SelectTrainingUnit('Ninja Fitness', this)">
+                    Freitag<br>Ninja Fitness
+                </button>
+                <button class="btn btn-outline unit-btn" id="unit_btn_kohai" onclick="SelectTrainingUnit('Kôhai-Training', this)">
+                    Freitag<br>Kôhai
+                </button>
+            </div>
+
+            <p class="card-sub" style="margin-bottom: 4px;">2. Trainierte Inhalte für die Schüler-Statistik antippen:</p>
+            <div class="tag-cloud" id="ui_trainer_tag_cloud"></div>
+
+            <button class="btn btn-primary" onclick="GenerateTaggedQrCode()">
+                🔐 QR-Code für 30 Min. erzeugen
+            </button>
+
+            <div id="ui_qr_result_box" style="display: none; background: #fff; color: #111; border-radius: 12px; padding: 14px; text-align: center; margin-top: 12px;">
+                <div style="font-size: 0.74rem; font-weight: 800; color: var(--beaver-brown);" id="ui_qr_unit_title">SENPAI-TRAINING</div>
+                <div style="font-size: 0.68rem; color: #444; margin: 4px 0 8px;" id="ui_qr_tags_label"></div>
+                <img id="ui_real_qr_img" src="" alt="QR Code" style="width: 165px; height: 165px; margin: 0 auto; display: block; border: 4px solid #fff; border-radius: 8px;" />
+                <div style="font-family: monospace; font-weight: 900; font-size: 1.15rem; color: #111; margin-top: 6px;" id="ui_qr_code_pin">TAIDEN-9042</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- =================================================================
+         PERSONAL NAFUDA DASHBOARD MODAL
+         ================================================================= -->
+    <div id="ui_member_modal" class="modal-overlay" onclick="CloseMemberDashboard()">
+        <div id="ui_modal_sheet" class="modal-sheet wood-standard" onclick="event.stopPropagation()">
+            <div id="modal_watermark_jp" class="modal-nafuda-watermark">パブロ</div>
+
+            <div class="modal-content-layer">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div id="modal_stamp_preview" style="width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;"></div>
+                        <div>
+                            <span id="modal_belt_label_top" style="font-size: 0.68rem; text-transform: uppercase; font-weight: 800; opacity: 0.85;">Gürtelfarbe: Grün</span>
+                            <h2 id="modal_member_name" style="font-size: 1.25rem; font-weight: 900;">Pablo • 5. Kyû</h2>
+                        </div>
+                    </div>
+                    <button onclick="CloseMemberDashboard()" style="background: rgba(0,0,0,0.65); color: #fff; border: 1px solid rgba(255,255,255,0.25); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-weight: 800;">✕</button>
+                </div>
+
+                <div id="modal_belt_stripe" class="nafuda-stripe stripe-green" style="height: 11px; border-radius: 4px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"></div>
+
+                <div class="stat-grid">
+                    <div class="stat-box">
+                        <div class="stat-num" id="modal_taiden_lvl">Lvl 5</div>
+                        <div class="stat-lbl">🪵 Taiden-Level (Monat: <span id="modal_month_contrib">18</span>)</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-num" id="modal_kuden_lvl">Lvl 5</div>
+                        <div class="stat-lbl">📜 Kuden-Level (<span id="modal_kuden_xp">450</span> XP)</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-num" id="modal_total_trainings">42</div>
+                        <div class="stat-lbl">📊 Absolviertes Training</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-num" id="modal_streak">11 Wo.</div>
+                        <div class="stat-lbl">🔥 Taiden-Streak in Folge</div>
+                    </div>
+                </div>
+
+                <div class="nafuda-glass-card">
+                    <div style="font-size: 0.84rem; font-weight: 700; margin-bottom: 8px; color: var(--accent-gold);">
+                        ⚔️ Trainierte Inhalte (Taiden-Statistik)
+                    </div>
+                    <div id="modal_skill_bars"></div>
+                </div>
+
+                <div class="nafuda-glass-card" style="margin-bottom: 0;">
+                    <div style="font-size: 0.84rem; font-weight: 700; margin-bottom: 6px; color: var(--accent-gold);">
+                        🗓️ Letzte 3 Trainings & trainierte Inhalte
+                    </div>
+                    <div id="modal_recent_logs" style="font-size: 0.76rem; line-height: 1.45;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="SwitchTab('view_home', this)">
+            <span class="nav-icon">🏯</span>
+            <span>Dôjô Damm</span>
+        </button>
+        <button class="nav-item" onclick="SwitchTab('view_nafuda', this)">
+            <span class="nav-icon">🪵</span>
+            <span>Nafudakake</span>
+        </button>
+        <button class="nav-item" onclick="SwitchTab('view_quiz', this)">
+            <span class="nav-icon">📜</span>
+            <span>Kuden</span>
+        </button>
+        <button class="nav-item" onclick="SwitchTab('view_checkin', this)">
+            <span class="nav-icon">📷</span>
+            <span>Check-In</span>
+        </button>
+    </nav>
+</div>
+
+<script>
+    // =========================================================================
+    // GLOBAL STATE VARIABLES & LIVE GOOGLE SHEET CONNECTION
+    // =========================================================================
+    let google_script_api_url = localStorage.getItem("umidanuki_api_url") || "";
+    let saved_user_pin = localStorage.getItem("umidanuki_user_pin") || "";
+    let is_live_sheet_mode = false;
+
+    let dojo_dam_stage = 12;
+    let dam_stage_current_xp = 6;
+    let dam_stage_required_xp = 10;
+    let active_member_id = "david";
+    let selected_training_unit = "Senpai-Training";
+    let selected_session_tags = ["Kihon Happô", "Gyokko Ryû", "Hanbô"];
+    let current_quiz_index = 0;
+
+    let html5_qr_scanner = null;
+    let is_camera_scanning = false;
+
+    let last_month_top3_list = [
+        { name: "Stefan", xp: 34 },
+        { name: "Pablo", xp: 29 },
+        { name: "Maira", xp: 24 }
+    ];
+
+    const available_training_tags = [
+        "Rei Hô / Etikette", "Kamae", "Ukemi Waza", "Taihen Jutsu", "Sabaki Waza",
+        "Shinobi Aruki Jutsu", "Hoken Jûrôppô", "Uke Waza", "Ha Jutsu Kyû Hô",
+        "Sanshin No Kata", "Kihon Happô", "Gyaku Gi", "Shime Waza", "Kyûsho Jutsu",
+        "Mutô Dori", "Hanbô", "Rokushaku Bô", "Tantô", "Katana", "Shukô",
+        "Shuriken", "Jutte", "Gyokko Ryû", "Kotô Ryû", "Kukishinden Ryû",
+        "Tôgakure Ryû", "Kumogakure Ryû", "Takagi Yoshin Ryû", "Shinden Fudô Ryû",
+        "Gikan Ryû", "Gyokushin Ryû"
+    ];
+
+    // =========================================================================
+    // 3.) KOMPLETTER KUDEN-FRAGENPOOL (135 FRAGEN: GOOGLE FORMS + KIHON + CURRICULUM)
+    // =========================================================================
+    const kuden_quiz_questions = [
+        // --- TEIL A: ALLE FRAGEN AUS "JAPANISCH FÜR BUDÔKA" (GOOGLE FORMS) ---
+        { category: "Japanisch für Budôka", question: "Was bedeutet ‚Uke‘?", options: ["‚Empfänger‘ einer Technik", "Position/Stellung", "Angriff/Schlag", "Verteidiger"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Wie heißt der Ausführende einer Technik?", options: ["Tori", "Migi", "Nage", "Tsuki"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Wie heißt die Angriffshöhe ‚Hoch‘ / Kopfhöhe?", options: ["Jôdan", "Chûdan", "Gedan", "Shôdan"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Wie heißt die Angriffshöhe ‚Mittel‘ / Bauchhöhe?", options: ["Jôdan", "Chûdan", "Gedan", "Shôdan"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Wie heißt die Angriffshöhe ‚Tief‘ / Beinhöhe?", options: ["Jôdan", "Chûdan", "Gedan", "Shôdan"], correct_index: 2 },
+        { category: "Japanisch für Budôka", question: "Wie bedanken sich die Schüler für ein Training z. B. beim Abgrüßen?", options: ["Dô Itashimashite", "Onegai Shimasu", "Arigatô Gozaimashita", "Shikin Haramitsu Daikomyô"], correct_index: 2 },
+        { category: "Japanisch für Budôka", question: "Was heißt ‚Laufen‘ auf Japanisch?", options: ["Juji", "Aruki", "Suwari", "Seiza"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Welches Körperteil ist ‚Ashi‘?", options: ["Finger", "Hals", "Körper", "Bein"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Was bedeutet ‚Budô‘ auf Deutsch?", options: ["Der Weg des Kriegers", "Der Weg Gottes", "Die Ehre des Krieges", "Kriegerfreunde"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was bedeutet ‚Bujinkan‘ auf Deutsch?", options: ["Göttliche Kampfkunst", "Halle des Kriegsgottes", "Leere Hand", "Der Weg des sanften Gottes"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Wie bezeichnet man die kurzen Rippen, die häufig Ziel von Angriffen werden?", options: ["Taki", "Nodô", "Yubi", "Butsumetsu"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Was bedeutet ‚Buyû‘ auf Deutsch?", options: ["Kriegerfreunde", "Kriegsfeinde", "Kampfsportfreunde", "Teilfreunde"], correct_index: 0 },
+        { category: "Japanisch für Budôka • Gogyô", question: "Welches Element ist ‚Chi‘ (地)?", options: ["Erde", "Wasser", "Feuer", "Luft"], correct_index: 0 },
+        { category: "Japanisch für Budôka • Gogyô", question: "Welches Element ist ‚Sui‘ (水)?", options: ["Erde", "Wasser", "Feuer", "Leere"], correct_index: 1 },
+        { category: "Japanisch für Budôka • Gogyô", question: "Welches Element ist ‚Ka‘ (火)?", options: ["Erde", "Wasser", "Feuer", "Luft"], correct_index: 2 },
+        { category: "Japanisch für Budôka • Gogyô", question: "Welches Element ist ‚Fû‘ (風)?", options: ["Erde", "Wasser", "Luft / Wind", "Leere"], correct_index: 2 },
+        { category: "Japanisch für Budôka • Gogyô", question: "Welches Element ist ‚Kû‘ (空)?", options: ["Erde", "Feuer", "Luft", "Leere"], correct_index: 3 },
+        { category: "Japanisch für Budôka • Titel", question: "Welche Reihenfolge sortiert die Titel im Bujinkan korrekt aufsteigend (1 bis 5)?", options: ["Kôhai ➔ Senpai ➔ Shidôshi ➔ Shihan ➔ Daishihan", "Senpai ➔ Kôhai ➔ Shihan ➔ Shidôshi ➔ Daishihan", "Kôhai ➔ Shidôshi ➔ Senpai ➔ Daishihan ➔ Shihan", "Shidôshi ➔ Kôhai ➔ Senpai ➔ Shihan ➔ Daishihan"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Wie heißen die Graduierungen der Meisterränge?", options: ["Dan", "San", "Nan", "Zan"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was enthält eine ‚Denshô‘?", options: ["Beschreibung von Techniken", "Japanisch/Deutsch-Übersetzungen", "Darstellungen von Meerestieren", "Aktzeichnungen"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Welches Körperteil bezeichnet ‚Dô‘?", options: ["Bein", "Oberkörper", "Solar Plexus", "Finger"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was ist ein ‚Dôjô-Chô‘?", options: ["Der Buchhalter eines Dôjô", "Der neueste Schüler eines Dôjô", "Die Leitung eines Dôjô", "Der erfahrenste Schüler eines Dôjô"], correct_index: 2 },
+        { category: "Japanisch für Budôka", question: "Was ist ein ‚Gaijin‘?", options: ["Ein Nicht-Japaner / Ausländer", "Ein Bergeremit", "Ein unzivilisierter Mensch", "Ein Reptiloid"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was bedeutet ‚Ganbatte‘ oder ‚Ganbatte Kudasai‘ NICHT?", options: ["Halte durch", "Bleib dran", "Viel Erfolg", "Entspann dich"], correct_index: 3 },
+        { category: "Die 9 Schulen (Ryûha)", question: "Wie heißt die ‚Gikan Ryû‘ auf Deutsch?", options: ["Schule der Wahrheit, Treue und Gerechtigkeit", "Die Schule des Juwelentigers", "Die Schule des Juwelenherzens", "Die Schule der neun göttlichen Dämonen"], correct_index: 0 },
+        { category: "Die 9 Schulen (Ryûha)", question: "Wie heißt die ‚Gyokko Ryû‘ auf Deutsch?", options: ["Die Schule des Juwelentigers", "Die Schule, die den Tiger niederschlägt", "Die Schule des Juwelenherzens", "Die Schule der verborgenen Tür"], correct_index: 0 },
+        { category: "Die 9 Schulen (Ryûha)", question: "Wie heißt die ‚Gyokushin Ryû‘ auf Deutsch?", options: ["Die Schule des Juwelenherzens", "Die Schule des Juwelentigers", "Die Schule verborgen im Nebel", "Schule der Wahrheit, Treue und Gerechtigkeit"], correct_index: 0 },
+        { category: "Die 9 Schulen (Ryûha)", question: "Wie heißt die ‚Kotô Ryû‘ auf Deutsch?", options: ["Die Schule, die den Tiger niederschlägt", "Die Schule des Juwelentigers", "Die Schule der neun göttlichen Dämonen", "Die Schule des unbeweglichen Herzens"], correct_index: 0 },
+        { category: "Die 9 Schulen (Ryûha)", question: "Wie heißt die ‚Kukishinden Ryû‘ auf Deutsch?", options: ["Die Schule der neun göttlichen Dämonen", "Die Schule verborgen im Nebel", "Hoher Baum - Erhabenes Herz - Schule", "Die Schule der verborgenen Tür"], correct_index: 0 },
+        { category: "Die 9 Schulen (Ryûha)", question: "Wie heißt die ‚Kumogakure Ryû‘ auf Deutsch?", options: ["Die Schule verborgen im Nebel", "Die Schule der verborgenen Tür", "Die Schule des unbeweglichen Herzens", "Die Schule des Juwelenherzens"], correct_index: 0 },
+        { category: "Die 9 Schulen (Ryûha)", question: "Wie heißt die ‚Shinden Fudô Ryû‘ auf Deutsch?", options: ["Die Schule des unbeweglichen Herzens", "Die Schule der neun göttlichen Dämonen", "Schule der Wahrheit, Treue und Gerechtigkeit", "Hoher Baum - Erhabenes Herz - Schule"], correct_index: 0 },
+        { category: "Die 9 Schulen (Ryûha)", question: "Wie heißt die ‚Takagi Yôshin Ryû‘ auf Deutsch?", options: ["Hoher Baum - Erhabenes Herz - Schule", "Die Schule des unbeweglichen Herzens", "Die Schule, die den Tiger niederschlägt", "Die Schule des Juwelentigers"], correct_index: 0 },
+        { category: "Die 9 Schulen (Ryûha)", question: "Wie heißt die ‚Tôgakure Ryû‘ auf Deutsch?", options: ["Die Schule der verborgenen Tür", "Die Schule verborgen im Nebel", "Die Schule der neun göttlichen Dämonen", "Die Schule des Juwelenherzens"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Wie heißt das japanische Prinzip, nach dem wir Neues in 3 Stufen lernen?", options: ["Shu Ha Ri", "Sha Sho Shin", "Shi Dô Shi", "Schnick Schnack Schnuck"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Wie bezeichnet man eine Variation von einer Grundtechnik?", options: ["Henka", "Zanka", "Denshô", "Kata"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Unter welchen beiden Namen ist die Fünf-Elemente-Kata im Bujinkan bekannt?", options: ["Sanshin No Kata & Gogyô No Kata", "Kihon Happô & Junan Taisô", "Tai Sabaki & Suwari Gata", "Denshô Kata & Juppô Sesshô"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was heißt ‚links‘ auf Japanisch?", options: ["Hidari", "Migi", "Soto", "Uchi"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was heißt ‚rechts‘ auf Japanisch?", options: ["Hidari", "Migi", "Omote", "Ura"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was ist das ‚Honbu Dôjô‘?", options: ["Das zentrale Dôjô des Bujinkan in Japan nahe der Atago Station", "Der Privatwohnsitz unseres Großmeisters Hatsumi Masaaki", "Ein Dôjô in Japan, in dem die sogenannte Honbu Ryû trainiert wird", "So nennt man den Trainingsort des Umidanuki Dôjô"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was ist ein ‚Jinja‘?", options: ["Tempel", "Schrank", "Schrein", "Altar"], correct_index: 2 },
+        { category: "Japanisch für Budôka", question: "Wie lässt sich ‚Juppô Sesshô‘ idiomatisch übersetzen?", options: ["10.000 Veränderungen, keine Überraschung", "Anpassung in 10 Wegen", "Halte durch", "In jedem Moment steckt Erleuchtung"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was bedeutet ‚Jutsu‘ auf Deutsch?", options: ["Kraft", "Erfahrung", "Balance", "Kunst"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Was bedeutet ‚Kamae‘ auf Deutsch?", options: ["Stellung, Haltung", "Ausführung, Bewegungsablauf", "Faustposition", "Schildkröte"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was ist der sogenannte ‚Kamidana‘ oder ‚Kamiza‘?", options: ["Der Raum, in dem die Trainingswaffen aufbewahrt werden", "Der Schrein, zu dem im Training angegrüßt wird", "Die Box, in der eine Rüstung aufbewahrt wird", "Der Vorraum, in dem man seine Schuhe auszieht"], correct_index: 1 },
+        { category: "Japanische Schrift", question: "Welches dieser Zeichen ist ein sogenanntes Kanji?", options: ["A", "あ", "ア", "狸"], correct_index: 3 },
+        { category: "Japanische Schrift", question: "Welches dieser Zeichen ist ein sogenanntes Hiragana?", options: ["A", "あ", "ア", "狸"], correct_index: 1 },
+        { category: "Japanische Schrift", question: "Welches dieser Zeichen ist ein sogenanntes Katakana?", options: ["A", "あ", "ア", "狸"], correct_index: 2 },
+        { category: "Japanische Schrift", question: "Welches dieser Zeichen ist ein sogenanntes Romaji?", options: ["A", "あ", "ア", "狸"], correct_index: 0 },
+        { category: "Kyûsho & Körperteile", question: "Welches Körperteil ist ‚Kasumi‘?", options: ["Gesicht", "Schläfe", "Ohr", "Hals"], correct_index: 1 },
+        { category: "Kyûsho & Körperteile", question: "Welches Körperteil bezeichnet ‚Kata‘?", options: ["Schulter", "Arm", "Bauch", "Bein"], correct_index: 0 },
+        { category: "Kyûsho & Körperteile", question: "Welches Körperteil ist ‚Koshi‘?", options: ["Oberschenkel", "Fingerspitze", "Hüfte", "Kiefer"], correct_index: 2 },
+        { category: "Kyûsho & Körperteile", question: "Welches Körperteil ist ‚Kote‘?", options: ["Unterarm", "Ellbogen", "Rippen", "Handgelenk"], correct_index: 3 },
+        { category: "Kyûsho & Körperteile", question: "Welches Körperteil ist ‚Me‘?", options: ["Augen", "Nase", "Mund", "Ohren"], correct_index: 0 },
+        { category: "Kyûsho & Körperteile", question: "Welches Körperteil ist ‚Mimi‘?", options: ["Augen", "Nase", "Mund", "Ohren"], correct_index: 3 },
+        { category: "Kyûsho & Körperteile", question: "Welches Körperteil ist ‚Suigetsu‘?", options: ["Bauch", "Solar Plexus", "Rippen", "Magen"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Wofür steht das ‚Tai‘ in Taijutsu?", options: ["Kopf", "Arme", "Körper", "Beine"], correct_index: 2 },
+        { category: "Kyûsho & Körperteile", question: "Welches Körperteil ist ‚Te‘?", options: ["Finger", "Hüfte", "Hand", "Unterarm"], correct_index: 2 },
+        { category: "Kyûsho & Körperteile", question: "Welches Körperteil ist ‚Ude‘?", options: ["Hand", "Arm / Unterarm", "Schulter", "Nacken"], correct_index: 1 },
+        { category: "Kyûsho & Körperteile", question: "Welches Körperteil ist ‚Yubi‘?", options: ["Finger", "Hand", "Fuß", "Bein"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was bedeuten die Begriffe ‚Ryôte‘, ‚Katate‘ und ‚Mute‘?", options: ["Ryôte = Beide Hände, Katate = Eine Hand, Mute = Keine Hand", "Ryôte = Keine Hand, Katate = Beide Hände, Mute = Eine Hand", "Ryôte = Rechts, Katate = Links, Mute = Mitte", "Ryôte = Schwert, Katate = Stock, Mute = Waffenlos"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was ist eine ‚Kata‘?", options: ["Eine Schriftrolle mit Techniken", "Eine Waffe", "Eine spezielle Art zu Rollen", "Ein Bewegungsablauf / eine spezifische Form einer Technik"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Ken‘ (im Taijutsu)?", options: ["Eine männliche Puppe", "Faust", "Tritt", "Stellung"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Keri‘?", options: ["Ein typischer Vorname", "Faust", "Tritt", "Stellung"], correct_index: 2 },
+        { category: "Japanisch für Budôka", question: "Was bedeutet ‚Grundlagen / Basis‘ auf Japanisch?", options: ["Happô", "Gogyô", "Sanshin", "Kihon"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Wie bezeichnet man auf Japanisch einen noch unerfahrenen Schüler?", options: ["Senpai", "Kôhai", "Shôdan", "Shihan"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Wie bezeichnet man auf Japanisch einen erfahrenen Schüler?", options: ["Senpai", "Kôhai", "Shôdan", "Shihan"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Wie bezeichnet man im Bujinkan einen Lehrer (‚Der den Weg weist‘)?", options: ["Daishihan", "Shihan", "Shôdan", "Shidôshi"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Wie bezeichnet man einen sehr erfahrenen Lehrer des Bujinkan (ab 10. Dan)?", options: ["Daishihan", "Shihan", "Shôdan", "Shidôshi"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was ist der höchste Ehrentitel für Lehrer im Bujinkan (ab 15. Dan)?", options: ["Daishihan", "Shihan", "Shôdan", "Shidôshi"], correct_index: 0 },
+        { category: "Richtungen auf Japanisch", question: "Was bedeuten ‚Zenpô / Mae‘ und ‚Kohô / Ushiro‘?", options: ["Zenpô/Mae = Vorne, Kohô/Ushiro = Hinten", "Zenpô/Mae = Hinten, Kohô/Ushiro = Vorne", "Zenpô/Mae = Rechts, Kohô/Ushiro = Links", "Zenpô/Mae = Oben, Kohô/Ushiro = Unten"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Kuzushi‘?", options: ["Stabilität", "Schräg / schief (Gleichgewicht brechen)", "Raum", "Moment"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Wie nennt man im Bujinkan die Schülergraduierungen?", options: ["Dan", "Kyû", "Ryû", "Zan"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was ist ein ‚Kyûsho‘-Punkt?", options: ["Ein Hebelpunkt", "Der Schwerpunkt beim Werfen", "Ein Schmerzpunkt / Nervendruckpunkt", "Der wichtigste Punkt einer Technik"], correct_index: 2 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Mutô‘ NICHT?", options: ["Ohne Schwert", "Ohne Kampfeswillen", "Ohne Intention", "Ohne Sinn"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Nagare‘?", options: ["Fließen", "Aufhalten", "Kämpfen", "Rollen"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Wofür steht das ‚Nin‘ (忍) in Ninjutsu?", options: ["Spionieren", "Geduld, Ausdauer / Durchhalten", "Kämpfen", "Verstecken"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Wie bitten wir beim Angrüßen um ein gutes Training?", options: ["Onegai Shimasu", "Dômo Arigatô Gozaimasu", "Shikin Haramitsu Daikomyô", "Gakurai Tôsha Akuma Fudô"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Otoshi‘?", options: ["Einen Hebel ausführen", "Eine Wurfwaffe werfen", "Zu Boden werfen / fallen lassen", "Schneiden"], correct_index: 2 },
+        { category: "Japanisch für Budôka", question: "Wie bezeichnet man das Verbeugen / die Begrüßungsetikette auf Japanisch?", options: ["Otoshi", "Reihô", "Reiki", "Ryûha"], correct_index: 1 },
+        { category: "Shu-Ha-Ri", question: "Wofür steht das ‚Shu‘ (守) aus ‚Shu-Ha-Ri‘?", options: ["Nachahmen", "Hinterfragen", "Üben", "Perfektionieren"], correct_index: 0 },
+        { category: "Shu-Ha-Ri", question: "Wofür steht das ‚Ha‘ (破) aus ‚Shu-Ha-Ri‘?", options: ["Erfinden", "Brechen (der gelernten Form)", "Üben", "Verstehen"], correct_index: 1 },
+        { category: "Shu-Ha-Ri", question: "Wofür steht das ‚Ri‘ (離) aus ‚Shu-Ha-Ri‘?", options: ["Perfektionieren", "Verstehen", "Vergessen", "Loslassen"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Ryû‘ (流)?", options: ["Kampfkunst-Schule", "Technik", "Rolle", "Schülergraduierung"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Wie kann der Begriff ‚Ryûtai Undô‘ idiomatisch übersetzt werden?", options: ["Dehnübungen", "10 Wege sich zu stärken", "Spezielle Übungen einer Schule", "Drachenkörper-Übungen"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Wie bezeichnet man auf Japanisch das ‚Ausweichen‘?", options: ["Hodoki", "Sabaki", "Kaiten", "Nagare"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Sakki‘?", options: ["Schwertschneide", "Todesangst", "Gespür für Gefahr / Mordabsicht", "Glücksspiel"], correct_index: 2 },
+        { category: "Japanisch für Budôka", question: "Was bedeutet die Aussage ‚Shikin Haramitsu Daikomyô‘?", options: ["Wir bitten um ein gutes Training", "Mit leerem Magen trainiert es sich schlecht", "Mögen die alten Meister uns wohlgesonnen sein", "In jedem Moment steckt Erleuchtung"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Shinobi‘?", options: ["Eine andere Bezeichnung für ‚Ninja‘", "Eine alte Bezeichnung für Großmeister", "Eine alte Bezeichnung für Ninja-Waffen", "Eine moderne Bezeichnung für Anime-Figuren"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Wie bezeichnet man den ersten Meistergrad (1. Dan) noch?", options: ["Shodan", "Nidan", "Senpai", "Sendan"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der Begriff ‚Sode‘ (im modernen Gi bzw. an der Rüstung)?", options: ["Ärmel / Schulterrüstung", "Faust", "Hose", "Gürtel"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Soke‘?", options: ["Eine spezifische Fausthaltung", "Schulterrüstung", "Dôjô-Leiter", "Oberhaupt einer Kampfkunstschule (Ryû)"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Uchi‘?", options: ["Innenseite", "Außenseite", "Rechts", "Links"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Soto‘?", options: ["Innenseite", "Außenseite", "Rechts", "Links"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Suwari‘?", options: ["Stehen", "Sitzen", "Laufen", "Hocken"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was ist das ‚Taihen Jutsu‘?", options: ["Kunst zu Rollen", "Kunst zu Fallen", "Kunst, den Körper zu verändern / zu bewegen", "Kunst, einen Gegner zu werfen"], correct_index: 2 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Tsuki‘?", options: ["Wurf", "Stich / gerader Schlag", "Tritt", "Haltung"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Ukemi‘?", options: ["Springen", "Ausweichen", "Rollen", "Fallen (Fallschule)"], correct_index: 3 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Umidanuki‘ (海狸)?", options: ["Wurfstern", "Biber", "Maus", "Otter"], correct_index: 1 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Waza‘?", options: ["Technik / Prinzip", "Waffe", "Eine Art zu sitzen", "Eine Körperhaltung"], correct_index: 0 },
+        { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Yoko‘?", options: ["nach vorne gerichtet", "zur Seite gerichtet", "nach hinten gerichtet", "nach unten gerichtet"], correct_index: 1 },
+
+        // --- TEIL B: FRAGEN AUS DEM KIHON-BUCH ("UMIDANUKI DÔJÔ NO KIHON") ---
+        { category: "Kihon-Buch • Geschichte", question: "Wer war der letzte aktive Shinobi und Lehrer von Soke Masaaki Hatsumi?", options: ["Takamatsu Toshitsugu", "Jigorô Kanô", "Morihei Ueshiba", "Miyamoto Musashi"], correct_index: 0 },
+        { category: "Kihon-Buch • 9 Schulen", question: "Welche 3 der 9 Schulen im Bujinkan sind traditionelle Ninja-Schulen (Ninpô)?", options: ["Tôgakure Ryû, Kumogakure Ryû, Gyokushin Ryû", "Gyokko Ryû, Kotô Ryû, Gikan Ryû", "Kukishinden Ryû, Shinden Fudô Ryû, Takagi Yôshin Ryû", "Tôgakure Ryû, Gyokko Ryû, Kukishinden Ryû"], correct_index: 0 },
+        { category: "Kihon-Buch • Graduierungen", question: "Welche Prüfung ist die Besonderheit beim Übergang zum 5. Dan (Godan / Shidôshi)?", options: ["Der Sakki-Test (Ausweichen vor einem Schwertstreich von hinten in Seiza)", "Ein 100-Mann-Vollkontakt-Kampf", "Das Durchschlagen von 10 Eisblöcken", "Ein 50-Kilometer-Lauf"], correct_index: 0 },
+        { category: "Kihon-Buch • 10. bis 5. Kyû", question: "Welcher Trainingsfokus gehört im Umidanuki Dôjô zum 9. Kyû?", options: ["Balance (Element Erde / Chi)", "Distanz (Element Wasser / Sui)", "Timing (Element Feuer / Ka)", "Rhythmus (Element Luft / Fû)"], correct_index: 0 },
+        { category: "Kihon-Buch • 10. bis 5. Kyû", question: "Welcher Trainingsfokus gehört im Umidanuki Dôjô zum 8. Kyû?", options: ["Distanz (Element Wasser / Sui)", "Balance (Element Erde / Chi)", "Gespür (Element Leere / Kû)", "Timing (Element Feuer / Ka)"], correct_index: 0 },
+        { category: "Kihon-Buch • 10. bis 5. Kyû", question: "Welcher Trainingsfokus gehört im Umidanuki Dôjô zum 7. Kyû?", options: ["Timing (Element Feuer / Ka)", "Rhythmus (Element Luft / Fû)", "Distanz (Element Wasser / Sui)", "Verständnis"], correct_index: 0 },
+        { category: "Kihon-Buch • 10. bis 5. Kyû", question: "Welcher Trainingsfokus gehört im Umidanuki Dôjô zum 6. Kyû?", options: ["Rhythmus (Element Luft / Fû)", "Timing (Element Feuer / Ka)", "Gespür (Element Leere / Kû)", "Balance (Element Erde / Chi)"], correct_index: 0 },
+        { category: "Kihon-Buch • 10. bis 5. Kyû", question: "Welcher Trainingsfokus gehört im Umidanuki Dôjô zum 5. Kyû?", options: ["Gespür / Feeling (Element Leere / Kû)", "Rhythmus (Element Luft / Fû)", "Distanz (Element Wasser / Sui)", "Balance (Element Erde / Chi)"], correct_index: 0 },
+        { category: "Kihon-Buch • Kamae", question: "Wie ist das Körpergewicht in ‚Ichimonji No Kamae‘ verteilt?", options: ["Zu 70 % auf dem hinteren Bein, damit das vordere beweglich bleibt", "Zu 100 % auf dem vorderen Bein", "Exakt 50 / 50 wie in Shizen Tai", "Man kniet auf beiden Schienbeinen"], correct_index: 0 },
+        { category: "Kihon-Buch • Kamae", question: "Wie werden Arme und Fäuste in ‚Jumonji No Kamae‘ gehalten?", options: ["Arme über Kreuz vor dem Brustkorb, Fäuste in Bôshi Ken, 70 % Gewicht vorne", "Arme weit seitlich ausgestreckt wie in Hira No Kamae", "Ein Bein auf der Wade abgestützt wie in Hichô No Kamae", "Hände flach auf dem Rücken"], correct_index: 0 },
+        { category: "Kihon-Buch • Ukemi Waza", question: "In welcher Form schlagen die Arme beim Vorwärtssturz (Zenpô Ukemi) vor dem Kopf ab?", options: ["In Form einer japanischen Acht (八 • Hachi)", "Über Kreuz hinter dem Nacken", "Gerade nach unten zwischen die Knie", "Gar nicht – man landet auf der Stirn"], correct_index: 0 },
+        { category: "Kihon-Buch • Hoken Jûrôppô", question: "Wie wird die Daumenfaust ‚Bôshi Ken‘ gebildet?", options: ["Der Daumen liegt auf dem eingeknickten Zeigefinger und übt Druck darauf aus", "Alle fünf Finger sind weit gespreizt", "Nur der kleine Finger wird ausgestreckt", "Die Handkante ist komplett geöffnet wie bei Shutô"], correct_index: 0 },
+        { category: "Kihon-Buch • Hoken Jûrôppô", question: "Welche Körperwaffe bezeichnet ‚Kikaku Ken‘?", options: ["Den Einsatz der Stirn / des Kopfes", "Den Einsatz des Ellbogens (Shuki Ken)", "Den Einsatz des Knies (Sokki Ken)", "Den Stampftritt mit der Ferse (Sokuyaku Geri)"], correct_index: 0 },
+        { category: "Kihon-Buch • Hoken Jûrôppô", question: "Wofür stehen ‚Shuki Ken‘ und ‚Sokki Ken‘?", options: ["Shuki Ken = Ellbogen, Sokki Ken = Knie", "Shuki Ken = Knie, Sokki Ken = Stirn", "Shuki Ken = Fußspitze, Sokki Ken = Handkante", "Shuki Ken = Schulter, Sokki Ken = Hüfte"], correct_index: 0 },
+        { category: "Kihon-Buch • Ha Jutsu Kyû Hô", question: "Welche Finger werden bei ‚Oya Goroshi‘ und ‚Ko Goroshi‘ gehebelt?", options: ["Oya Goroshi = Daumen, Ko Goroshi = Kleiner Finger", "Oya Goroshi = Zeigefinger, Ko Goroshi = Ringfinger", "Oya Goroshi = Handgelenk, Ko Goroshi = Ellbogen", "Oya Goroshi = Großer Zeh, Ko Goroshi = Ferse"], correct_index: 0 },
+        { category: "Kihon-Buch • Kihon Happô", question: "Aus welchen zwei Teilen setzt sich das ‚Kihon Happô‘ zusammen?", options: ["Koshi Kihon Sanpô (3) & Torite Kihon Gohô (5)", "Sanshin No Kata (5) & Ryu Sui Iki (3)", "Ukemi Waza (4) & Sabaki Waza (4)", "Jodan, Chudan & Gedan Tsuki"], correct_index: 0 },
+        { category: "Kihon-Buch • Kihon Happô", question: "Welche 3 Kata bilden das ‚Koshi Kihon Sanpô‘?", options: ["Ichimonji No Kata, Hichô No Kata, Jumonji No Kata", "Chi No Kata, Sui No Kata, Ka No Kata", "Omote Gyaku, Ura Gyaku, Ganseki Nage", "Tomoe Nage, Tachi Nagare, Kuruma"], correct_index: 0 },
+        { category: "Kihon-Buch • Sabaki Waza", question: "Was beschreibt das Sabaki-Prinzip ‚Moguri‘ (8. Kyû)?", options: ["Das tiefe Absenken des eigenen Körpers unter den Angriff", "Einen hohen Sprung mit angezogenen Beinen (Ten Chi Tobi)", "Einen Radschlag (Oten)", "Einen geraden Fauststoß"], correct_index: 0 },
+        { category: "Kihon-Buch • Timing (7. Kyû)", question: "Wie unterscheiden sich die drei Timings ‚Nijigen‘, ‚Sanjigen‘ und ‚Yûgen‘?", options: ["Nijigen = Nach Angriffsbeginn, Sanjigen = Zeitgleich, Yûgen = Vor der Ausführung (Intention erkannt)", "Nijigen = Schnell, Sanjigen = Mittel, Yûgen = Langsam", "Nijigen = Boden, Sanjigen = Stand, Yûgen = Sprung", "Nijigen = Waffenlos, Sanjigen = Stock, Yûgen = Schwert"], correct_index: 0 },
+        { category: "Kihon-Buch • 6. Kyû", question: "Was sind die 5 Techniken der ‚Ryu Sui Iki‘ (Tomoe Nage, Tachi Nagare, Yoko Nagare, Te Makura, Kuruma)?", options: ["Opferwürfe (Sutemi Waza), bei denen Tori gemeinsam mit Uke zu Boden geht", "Reine Schwertkata der Kukishinden Ryû", "Fünf Faustformen der Gyokko Ryû", "Dehnübungen zum Trainingsbeginn"], correct_index: 0 },
+        { category: "Kihon-Buch • Kaeshi Waza", question: "Welcher zentrale Leitsatz gilt im Umidanuki Dôjô für Gegentechniken (Kaeshi Waza)?", options: ["‚Gib Uke mehr als er will.‘", "‚Halte mit maximaler Muskelkraft dagegen.‘", "‚Bleib starr auf einem Fleck stehen.‘", "‚Schließe bei jedem Hebel die Augen.‘"], correct_index: 0 },
+        { category: "Kihon-Buch • 5. Kyû", question: "Was wird beim ‚Sannin Dori‘ trainiert und welcher Satz von Nagato Sensei gilt dabei?", options: ["Verteidigung gegen mehrere Gegner – ‚Langsam ist flüssig. Flüssig ist schnell.‘", "Kampf im tiefen Wasser – ‚Schnelligkeit ist alles.‘", "Wettkampf nach Punkten – ‚Wer zuerst trifft, gewinnt.‘", "Meditation im Sitzen"], correct_index: 0 },
+        { category: "Honbu Dôjô Leitlinie", question: "Wie lautet das 7. Prinzip der Bujinkan-Leitlinie von Soke Masaaki Hatsumi?", options: ["‚To study is the path to the immovable heart (Fudôshin).‘", "‚Der Stärkere besiegt den Schwächeren im Turnier.‘", "‚Techniken dürfen nur geheim aus Büchern gelernt werden.‘", "‚Kraft ist wichtiger als Präzision.‘"], correct_index: 0 },
+
+        // --- TEIL C: FRAGEN AUS DEM NINJUTSU CURRICULUM (GEDAN BIS 1. DAN) ---
+        { category: "Curriculum • Kids (Gelb)", question: "Welche drei Fokus-Stufen begleiten die Kinder-Graduierungen Gedan, Chûdan und Jôdan?", options: ["Gedan: Sicherheit (Ten) ➔ Chûdan: Kihon I (Chi) ➔ Jôdan: Kihon II (Jin)", "Gedan: Schwert ➔ Chûdan: Speer ➔ Jôdan: Bogen", "Gedan: Feuer ➔ Chûdan: Wasser ➔ Jôdan: Luft", "Gedan: 1. Dan ➔ Chûdan: 5. Dan ➔ Jôdan: 10. Dan"], correct_index: 0 },
+        { category: "Curriculum • 4. Kyû", question: "Welche Schulen und Waffen bilden den Schwerpunkt im Curriculum zum 4. Kyû?", options: ["Gyokko Ryû & Kotô Ryû – Tantô Jutsu / Wakizashi Jutsu", "Shinden Fudô Ryû – Yari & Naginata", "Takagi Yôshin Ryû – Rokushakubô", "Tôgakure Ryû – Kyûjutsu"], correct_index: 0 },
+        { category: "Curriculum • 3. Kyû", question: "Welche Schule und Waffe stehen im Mittelpunkt des Curriculums zum 3. Kyû?", options: ["Kukishinden Ryû – Kenjutsu (Katana)", "Gyokko Ryû – Tantô Jutsu", "Gikan Ryû – Shuriken Jutsu", "Kumogakure Ryû – Kamayari"], correct_index: 0 },
+        { category: "Curriculum • 3. Kyû (Kenjutsu)", question: "Welche Kamae gehören im Curriculum des 3. Kyû zum Kenjutsu (Schwertkampf)?", options: ["Daijôdan, Seigan, Chûdan, Gedan, Hassô & Kasumi No Kamae", "Nur Shizen Tai und Seiza", "Nur Hichô und Fudôza No Kamae", "Otonashi und Katayaburi No Kamae"], correct_index: 0 },
+        { category: "Curriculum • 2. Kyû", question: "Welche Schule und Waffe bilden den Schwerpunkt im Curriculum zum 2. Kyû?", options: ["Takagi Yôshin Ryû – Hanbô Jutsu (Kurzstock)", "Kukishinden Ryû – Kenjutsu", "Tôgakure Ryû – Shukô", "Kotô Ryû – Tantô"], correct_index: 0 },
+        { category: "Curriculum • 2. Kyû (Hanbô)", question: "Wie heißen typische Kamae mit dem Hanbô (Kurzstock) im 2. Kyû?", options: ["Katayaburi, Munenmusô / Tate, Otonashi & Tôtoku No Kamae", "Rushinyo und Kongo Gassho No Kamae", "Sankaku und Do Jime", "Harai Goshi und Seoi Nage"], correct_index: 0 },
+        { category: "Curriculum • 1. Kyû", question: "Welche Schule und Langwaffen stehen im Fokus des Curriculums zum 1. Kyû?", options: ["Shinden Fudô Ryû – Bô Jutsu, Yari Jutsu & Naginata Jutsu", "Gyokko Ryû – Tantô Jutsu", "Takagi Yôshin Ryû – Shuriken", "Kotô Ryû – Jutte"], correct_index: 0 },
+        { category: "Curriculum • 1. Dan (Shodan)", question: "Welche 3 Schulen und welches Thema bilden den Fokus zum 1. Dan (Shodan)?", options: ["Tôgakure, Kumogakure & Gyokushin Ryû – Hiden Buki No Jutsu & Shuriken Jutsu", "Reines Jûdô-Bodenrandori", "Nur Dehnübungen (Ryûtai Undô)", "Wettkampf-Kumite"], correct_index: 0 },
+        { category: "Curriculum • 1. Dan (Shuriken)", question: "Welche Wurfgeschosse werden im Shuriken Jutsu des 1. Dan unterschieden?", options: ["Bô Shuriken (Stift), Teppan Shuriken (Platte) & Senban Shuriken (Stern)", "Katana, Wakizashi & Tantô", "Yari, Naginata & Rokushakubô", "Hanbô, Jutte & Tessen"], correct_index: 0 },
+        { category: "Curriculum • 1. Dan (Ninpô Kamae)", question: "Welche speziellen Ryûha-Kamae gehören zum 1. Dan Curriculum?", options: ["Hachimonji, Happô Gakure, Tonsô & Mokuton No Kamae", "Nur Seiza und Fudôza", "Nur Shizen Tai", "Nur Koshi Guruma"], correct_index: 0 }
+    ];
+
+    // Offline Demo Fallback Data matching your TeamUmidanukiDojo.xlsx
+    let dojo_members_data = {
+        david: {
+            id: "david", name: "David", jp: "ダビッド", rank: "9. Dan", belt_color: "schwarz", row: 1, entry_ts: 1000, is_trainer: true,
+            taiden_xp: 25, kuden_xp: 950, month_contribution: 15, trainings: 148, streak_weeks: 52,
+            wood_type: "yakisugi", ink_type: "gold", stamp_type: "dojo_stamp",
+            stats: { "Gyokko Ryû": 42, "Hanbô": 38, "Katana": 35, "Kihon Happô": 50 },
+            logs: [{ date: "Fr, 23.10. • Ninja Fitness", topics: "Taihen Jutsu, Kihon Happô" }]
+        },
+        isy: {
+            id: "isy", name: "Isy", jp: "イジー", rank: "2. Dan", belt_color: "schwarz", row: 1, entry_ts: 1000, is_trainer: true,
+            taiden_xp: 20, kuden_xp: 820, month_contribution: 14, trainings: 136, streak_weeks: 46,
+            wood_type: "ebony", ink_type: "silver", stamp_type: "bujin_logo",
+            stats: { "Kihon Happô": 48, "Ukemi Waza": 45, "Kamae": 40 },
+            logs: [{ date: "Fr, 23.10. • Kôhai-Training", topics: "Kihon Happô, Kamae" }]
+        },
+        pablo: {
+            id: "pablo", name: "Pablo", jp: "パブロ", rank: "5. Kyû", belt_color: "grün", row: 2, entry_ts: 1719792000000, is_trainer: false,
+            taiden_xp: 14, kuden_xp: 450, month_contribution: 18, trainings: 42, streak_weeks: 11,
+            wood_type: "standard", ink_type: "standard", stamp_type: "dojo_stamp",
+            stats: { "Kihon Happô": 19, "Gyokko Ryû": 14, "Hanbô": 12 },
+            logs: [{ date: "Di, 20.10. • Senpai-Training", topics: "Gyokko Ryû, Hanbô" }]
+        },
+        stefan: {
+            id: "stefan", name: "Stefan", jp: "シュテファン", rank: "5. Kyû", belt_color: "grün", row: 2, entry_ts: 1719792000000, is_trainer: false,
+            taiden_xp: 10, kuden_xp: 310, month_contribution: 16, trainings: 39, streak_weeks: 8,
+            wood_type: "yakisugi", ink_type: "standard", stamp_type: "bujin_logo",
+            stats: { "Hanbô": 18, "Kihon Happô": 22 },
+            logs: [{ date: "Di, 20.10. • Senpai-Training", topics: "Gyokko Ryû, Hanbô" }]
+        },
+        lena: {
+            id: "lena", name: "Lena", jp: "レナ", rank: "6. Kyû", belt_color: "rot", row: 2, entry_ts: 1719792000000, is_trainer: false,
+            taiden_xp: 9, kuden_xp: 320, month_contribution: 12, trainings: 31, streak_weeks: 9,
+            wood_type: "standard", ink_type: "silver", stamp_type: "bujin_logo",
+            stats: { "Ukemi Waza": 15, "Kamae": 14 },
+            logs: [{ date: "Fr, 23.10. • Kôhai-Training", topics: "Kihon Happô, Kamae" }]
+        },
+        paula: {
+            id: "paula", name: "Paula", jp: "パウラ", rank: "8. Kyû", belt_color: "rot", row: 2, entry_ts: 1719792000000, is_trainer: false,
+            taiden_xp: 8, kuden_xp: 290, month_contribution: 11, trainings: 26, streak_weeks: 7,
+            wood_type: "standard", ink_type: "standard", stamp_type: "none",
+            stats: { "Ukemi Waza": 11, "Kamae": 10 },
+            logs: [{ date: "Fr, 23.10. • Kôhai-Training", topics: "Ukemi Waza, Kamae" }]
+        },
+        maira: {
+            id: "maira", name: "Maira", jp: "マイラ", rank: "9. Kyû", belt_color: "grün", row: 2, entry_ts: 1719792000000, is_trainer: false,
+            taiden_xp: 10, kuden_xp: 410, month_contribution: 17, trainings: 25, streak_weeks: 10,
+            wood_type: "standard", ink_type: "gold", stamp_type: "dojo_stamp",
+            stats: { "Ukemi Waza": 14, "Kamae": 13 },
+            logs: [{ date: "Fr, 23.10. • Kôhai-Training", topics: "Ukemi Waza, Kamae" }]
+        },
+        jonas: {
+            id: "jonas", name: "Jonas", jp: "ヨナス", rank: "Jôdan", belt_color: "gelb_jodan", row: 3, entry_ts: 1719792000000, is_trainer: false,
+            taiden_xp: 7, kuden_xp: 280, month_contribution: 10, trainings: 22, streak_weeks: 6,
+            wood_type: "standard", ink_type: "standard", stamp_type: "bujin_logo",
+            stats: { "Kamae": 12, "Ukemi Waza": 11 },
+            logs: [{ date: "Fr, 23.10. • Kôhai-Training", topics: "Kamae, Ukemi Waza" }]
+        },
+        ludwig: {
+            id: "ludwig", name: "Ludwig", jp: "ルートヴィヒ", rank: "Chûdan", belt_color: "gelb_chudan", row: 3, entry_ts: 1719792000000, is_trainer: false,
+            taiden_xp: 6, kuden_xp: 210, month_contribution: 8, trainings: 18, streak_weeks: 5,
+            wood_type: "standard", ink_type: "standard", stamp_type: "none",
+            stats: { "Ukemi Waza": 10, "Kamae": 9 },
+            logs: [{ date: "Fr, 23.10. • Kôhai-Training", topics: "Ukemi Waza" }]
+        }
+    };
+
+    // =========================================================================
+    // INITIALIZATION & LOGIN
+    // =========================================================================
+
+    function ShuffleQuizQuestionsPool()
+    {
+        for (let _i = kuden_quiz_questions.length - 1; _i > 0; _i--)
+        {
+            let _j = Math.floor(Math.random() * (_i + 1));
+            let _temp = kuden_quiz_questions[_i];
+            kuden_quiz_questions[_i] = kuden_quiz_questions[_j];
+            kuden_quiz_questions[_j] = _temp;
+        }
+    }
+
+    function InitializeDojoApp()
+    {
+        ShuffleQuizQuestionsPool();
+
+        document.getElementById("input_api_url").value = google_script_api_url;
+        let _saved_name = localStorage.getItem("umidanuki_user_name") || "";
+        document.getElementById("input_first_name").value = _saved_name;
+        document.getElementById("input_pin_code").value = saved_user_pin;
+
+        RenderDamVisualStage(dojo_dam_stage);
+        RenderMonthlyLeaderboards();
+        RenderNafudakakeBoard();
+        UpdateCosmeticShopUI();
+        RenderTrainerTagCloud();
+        RenderKudenQuiz();
+        InitializeShurikenCanvas();
+
+        if (google_script_api_url !== "" && _saved_name !== "" && saved_user_pin !== "")
+        {
+            PerformLiveSheetLogin();
+        }
+    }
+
+    async function PerformLiveSheetLogin()
+    {
+        let _url = document.getElementById("input_api_url").value.trim();
+        let _name = document.getElementById("input_first_name").value.trim();
+        let _pin = document.getElementById("input_pin_code").value.trim();
+
+        if (_url === "" || _name === "" || _pin === "")
+        {
+            ShowToastMessage("⚠️ Bitte Web-App-URL, Vorname und 4-stellige PIN eingeben!");
+            return;
+        }
+
+        let _btn = document.getElementById("btn_login_submit");
+        _btn.innerText = "⏳ Verbinde mit Google Sheet...";
+
+        try
+        {
+            let _response = await fetch(_url, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    action: "login_and_fetch",
+                    first_name: _name,
+                    pin_code: _pin
+                })
+            });
+
+            let _data = await _response.json();
+
+            if (_data.status !== "ok")
+            {
+                _btn.innerText = "🥋 Jetzt im Dôjô anmelden";
+                ShowToastMessage("❌ " + (_data.message || "Login fehlgeschlagen"));
+                return;
+            }
+
+            google_script_api_url = _url;
+            saved_user_pin = _pin;
+            is_live_sheet_mode = true;
+            localStorage.setItem("umidanuki_api_url", _url);
+            localStorage.setItem("umidanuki_user_name", _name);
+            localStorage.setItem("umidanuki_user_pin", _pin);
+
+            dojo_members_data = {};
+            _data.nafudakake_list.forEach(function(_pub)
+            {
+                dojo_members_data[_pub.id] = {
+                    id: _pub.id,
+                    name: _pub.name,
+                    jp: _pub.jp,
+                    rank: _pub.rank,
+                    belt_color: _pub.belt_color,
+                    row: _pub.row,
+                    entry_ts: _pub.entry_ts || 0,
+                    month_contribution: _pub.month_contribution,
+                    wood_type: _pub.wood_type,
+                    ink_type: _pub.ink_type,
+                    stamp_type: _pub.stamp_type,
+                    taiden_xp: 0,
+                    kuden_xp: 0,
+                    trainings: 1,
+                    streak_weeks: 1,
+                    stats: {},
+                    logs: []
+                };
+            });
+
+            let _own = _data.own_profile;
+            active_member_id = _own.id;
+            dojo_members_data[_own.id] = Object.assign(dojo_members_data[_own.id] || {}, _own);
+
+            if (_data.dojo_dam)
+            {
+                dojo_dam_stage = _data.dojo_dam.dam_stage || 1;
+                dam_stage_current_xp = _data.dojo_dam.dam_pool_xp || 0;
+                if (_data.dojo_dam.last_month_top3 && _data.dojo_dam.last_month_top3.length > 0)
+                {
+                    last_month_top3_list = _data.dojo_dam.last_month_top3;
+                }
+            }
+
+            ApplyTrainerPermissions(_own.is_trainer);
+
+            document.getElementById("ui_login_screen").classList.add("hidden");
+            _btn.innerText = "🥋 Jetzt im Dôjô anmelden";
+
+            UpdateTopHeaderUI();
+            RenderDamVisualStage(dojo_dam_stage);
+            RenderMonthlyLeaderboards();
+            RenderNafudakakeBoard();
+            UpdateCosmeticShopUI();
+            ShowToastMessage("🦫 Willkommen im Dôjô, " + _own.name + "!");
+        }
+        catch (_err)
+        {
+            _btn.innerText = "🥋 Jetzt im Dôjô anmelden";
+            ShowToastMessage("⚠️ Verbindung fehlgeschlagen (prüfe Web-App-URL / Bereitstellung).");
+        }
+    }
+
+    function StartOfflineDemoMode()
+    {
+        is_live_sheet_mode = false;
+        active_member_id = "david";
+        ApplyTrainerPermissions(true);
+        document.getElementById("ui_login_screen").classList.add("hidden");
+        UpdateTopHeaderUI();
+        RenderDamVisualStage(dojo_dam_stage);
+        RenderNafudakakeBoard();
+        UpdateCosmeticShopUI();
+        ShowToastMessage("🔍 Offline-Demo aktiv (Eingeloggt als David • Shidôshi)");
+    }
+
+    function ApplyTrainerPermissions(is_trainer_flag)
+    {
+        document.getElementById("ui_shidoshi_generator_card").style.display = is_trainer_flag ? "block" : "none";
+        document.getElementById("ui_trainer_dam_preview_box").style.display = is_trainer_flag ? "block" : "none";
+    }
+
+    function LogoutDojoUser()
+    {
+        StopCameraQrScanner();
+        document.getElementById("ui_login_screen").classList.remove("hidden");
+    }
+
+    async function SyncMemberStateToGoogleSheet(added_dam_xp_amount)
+    {
+        if (!is_live_sheet_mode || !google_script_api_url) { return; }
+        let _m = dojo_members_data[active_member_id];
+
+        try
+        {
+            await fetch(google_script_api_url, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify({
+                    action: "sync_member_actions",
+                    member_id: active_member_id,
+                    pin_code: saved_user_pin,
+                    taiden_xp: _m.taiden_xp,
+                    kuden_xp: _m.kuden_xp,
+                    month_contribution: _m.month_contribution,
+                    wood_type: _m.wood_type,
+                    ink_type: _m.ink_type,
+                    stamp_type: _m.stamp_type,
+                    added_dam_xp: added_dam_xp_amount || 0
+                })
+            });
+        }
+        catch (_e) {}
+    }
+
+    // =========================================================================
+    // 2.) BUGFIX FOR KIDS BELT COLOR (CHECKS RANK JODAN/CHUDAN/GEDAN FIRST!)
+    // =========================================================================
+
+    function GetBeltVisualConfig(belt_color_key, rank_str_optional)
+    {
+        let _key = String(belt_color_key || "").toLowerCase();
+        let _rank = String(rank_str_optional || "").toLowerCase();
+
+        // Check Kids ranks FIRST so "Jôdan" / "Chûdan" / "Gedan" are never mistaken for Black Belt "Dan"!
+        if (_key.indexOf("gelb") !== -1 || _rank.indexOf("jôdan") !== -1 || _rank.indexOf("jodan") !== -1 || _rank.indexOf("chûdan") !== -1 || _rank.indexOf("chudan") !== -1 || _rank.indexOf("gedan") !== -1)
+        {
+            if (_key.indexOf("jodan") !== -1 || _rank.indexOf("jôdan") !== -1 || _rank.indexOf("jodan") !== -1)
+            {
+                return { css_class: "stripe-yellow", label: "Gelb • Jôdan (上段)", sub_mark: "上" };
+            }
+            if (_key.indexOf("chudan") !== -1 || _rank.indexOf("chûdan") !== -1 || _rank.indexOf("chudan") !== -1)
+            {
+                return { css_class: "stripe-yellow", label: "Gelb • Chûdan (中段)", sub_mark: "中" };
+            }
+            return { css_class: "stripe-yellow", label: "Gelb • Gedan (下段)", sub_mark: "下" };
+        }
+
+        if (_key === "schwarz" || _key === "shidoshi")
+        {
+            return { css_class: "stripe-dan", label: "Schwarz (Dan)", sub_mark: "" };
+        }
+        if (_key === "grün")
+        {
+            return { css_class: "stripe-green", label: "Grün (Kyû)", sub_mark: "" };
+        }
+        if (_key === "rot")
+        {
+            return { css_class: "stripe-red", label: "Rot (Kyû)", sub_mark: "" };
+        }
+        return { css_class: "stripe-white", label: "Weißer Gürtel", sub_mark: "" };
+    }
+
+    function SwitchTab(target_view_id, nav_btn_element)
+    {
+        if (target_view_id !== "view_checkin")
+        {
+            StopCameraQrScanner();
+        }
+
+        let _views = document.querySelectorAll(".view-section");
+        let _buttons = document.querySelectorAll(".nav-item");
+
+        _views.forEach(function(_v) { _v.classList.remove("active"); });
+        _buttons.forEach(function(_b) { _b.classList.remove("active"); });
+
+        document.getElementById(target_view_id).classList.add("active");
+        nav_btn_element.classList.add("active");
+    }
+
+    function UpdateTopHeaderUI()
+    {
+        let _m = dojo_members_data[active_member_id];
+        if (!_m) { return; }
+        let _belt_cfg = GetBeltVisualConfig(_m.belt_color, _m.rank);
+
+        document.getElementById("ui_header_name").innerText = _m.name + " (Mein Nafuda)";
+        document.getElementById("ui_header_rank").innerText = _m.rank + " (" + _belt_cfg.label + ")";
+
+        document.getElementById("ui_taiden_xp").innerText = _m.taiden_xp;
+        document.getElementById("ui_kuden_xp").innerText = _m.kuden_xp;
+        document.getElementById("ui_exchange_kuden").innerText = _m.kuden_xp;
+
+        document.getElementById("ui_dam_pool_progress").innerText = dam_stage_current_xp + " / " + dam_stage_required_xp + " Taiden XP";
+        let _pct = Math.min(100, Math.round((dam_stage_current_xp / dam_stage_required_xp) * 100));
+        document.getElementById("ui_dam_pool_bar").style.width = _pct + "%";
+    }
+
+    // =========================================================================
+    // SVG STAMP GENERATORS
+    // =========================================================================
+
+    function GetStampSvgHtml(stamp_type, size_px)
+    {
+        if (stamp_type === "dojo_stamp")
+        {
+            return `
+                <svg width="${size_px}" height="${size_px}" viewBox="0 0 40 40">
+                    <rect x="2" y="2" width="36" height="36" rx="6" fill="#b91c1c" stroke="#f8fafc" stroke-width="1.5"/>
+                    <circle cx="20" cy="20" r="14" fill="#ffffff" stroke="#0a0a0a" stroke-width="2"/>
+                    <path d="M11 15 C13 12, 17 14, 18 17 C15 18, 12 17, 11 15 Z" fill="#0a0a0a"/>
+                    <path d="M29 15 C27 12, 23 14, 22 17 C25 18, 28 17, 29 15 Z" fill="#0a0a0a"/>
+                    <ellipse cx="20" cy="18.5" rx="2.5" ry="1.5" fill="#0a0a0a"/>
+                    <path d="M12 21 Q20 23 28 21 L26 31 Q20 29 14 31 Z" fill="#0a0a0a"/>
+                    <rect x="18" y="21" width="4" height="10" fill="#ffffff" stroke="#0a0a0a" stroke-width="0.6"/>
+                </svg>
+            `;
+        }
+        else if (stamp_type === "bujin_logo")
+        {
+            return `
+                <svg width="${size_px}" height="${size_px}" viewBox="0 0 40 40">
+                    <circle cx="20" cy="20" r="17" fill="#b91c1c" stroke="#fbbf24" stroke-width="2.2"/>
+                    <text x="20" y="18" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="900">武</text>
+                    <text x="20" y="31" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="900">神</text>
+                </svg>
+            `;
+        }
+        return "";
+    }
+
+    // =========================================================================
+    // 4-ROW NAFUDAKAKE WITH FIXED KIDS / DAN SORTING
+    // =========================================================================
+
+    function GetMemberWoodClass(wood_type)
+    {
+        if (wood_type === "yakisugi") { return "wood-yakisugi"; }
+        if (wood_type === "ebony") { return "wood-ebony"; }
+        return "wood-standard";
+    }
+
+    function GetMemberInkClass(ink_type, wood_type)
+    {
+        if (ink_type === "gold") { return "ink-gold"; }
+        if (ink_type === "silver") { return "ink-silver"; }
+        return (wood_type === "standard") ? "ink-standard-light" : "ink-standard-dark";
+    }
+
+    // IMPORTANT FIX: Check Jôdan, Chûdan, Gedan BEFORE checking for "dan"!
+    function GetRankSortWeight(member_obj)
+    {
+        let _r_str = String(member_obj.rank || "").toLowerCase().trim();
+        let _num_match = _r_str.match(/(\d+)/);
+        let _num = _num_match ? parseInt(_num_match[1], 10) : 0;
+
+        // 1. Kids Yellow Belt Ranks (Jôdan > Chûdan > Gedan)
+        if (_r_str.indexOf("jôdan") !== -1 || _r_str.indexOf("jodan") !== -1)
+        {
+            return 30;
+        }
+        if (_r_str.indexOf("chûdan") !== -1 || _r_str.indexOf("chudan") !== -1)
+        {
+            return 20;
+        }
+        if (_r_str.indexOf("gedan") !== -1)
+        {
+            return 10;
+        }
+
+        // 2. Kyu Ranks (1. Kyu = 90 down to 9. Kyu = 10)
+        if (_r_str.indexOf("kyû") !== -1 || _r_str.indexOf("kyu") !== -1)
+        {
+            return Math.max(1, (10 - (_num || 10))) * 10;
+        }
+
+        // 3. True Dan Ranks (15. Dan = 1500 down to 1. Dan = 100)
+        if (/\b(\d+)\.\s*dan\b/.test(_r_str) || _r_str.indexOf("shodan") !== -1 || _r_str.indexOf("dan") !== -1)
+        {
+            return (_num > 0 ? _num : 1) * 100;
+        }
+
+        return 0;
+    }
+
+    function DetermineMemberRowNumber(member_obj)
+    {
+        let _belt = String(member_obj.belt_color || "").toLowerCase().trim();
+        let _rank = String(member_obj.rank || "").toLowerCase().trim();
+
+        // 1. Check Kids Yellow Belt FIRST (because "jôdan", "chûdan", "gedan" end with "dan"!)
+        if (_belt.indexOf("gelb") !== -1 || _rank.indexOf("jôdan") !== -1 || _rank.indexOf("jodan") !== -1 || _rank.indexOf("chûdan") !== -1 || _rank.indexOf("chudan") !== -1 || _rank.indexOf("gedan") !== -1)
+        {
+            return 3;
+        }
+
+        // 2. Check True Dan / Black Belt
+        let _is_true_dan = /\b(\d+)\.\s*dan\b/.test(_rank) || _rank.indexOf("shodan") !== -1;
+        if (_is_true_dan || _belt === "schwarz" || _belt === "shidoshi")
+        {
+            return 1;
+        }
+
+        // 3. Check Green & Red Kyu Belts
+        if (_belt === "grün" || _belt === "rot")
+        {
+            return 2;
+        }
+
+        // 4. White Belt
+        return 4;
+    }
+
+    function RenderNafudakakeBoard()
+    {
+        let _r1 = document.getElementById("nafuda_row_1");
+        let _r2 = document.getElementById("nafuda_row_2");
+        let _r3 = document.getElementById("nafuda_row_3");
+        let _r4 = document.getElementById("nafuda_row_4");
+
+        _r1.innerHTML = `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">指導士</div><div class="nafuda-stripe stripe-dan"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">SHIDÔSHI</div></div>`;
+        _r2.innerHTML = `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">先輩・後輩</div><div class="nafuda-stripe stripe-green"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">SENPAI &<br>KÔHAI</div></div>`;
+        _r3.innerHTML = `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">少年部</div><div class="nafuda-stripe stripe-yellow"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">KIDS<br>GELB</div></div>`;
+        _r4.innerHTML = `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">白帯</div><div class="nafuda-stripe stripe-white"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">WEISSER<br>GÜRTEL</div></div>`;
+
+        let _members_array = Object.keys(dojo_members_data).map(function(_k)
+        {
+            let _m = dojo_members_data[_k];
+            _m.row = DetermineMemberRowNumber(_m);
+            return _m;
+        });
+
+        _members_array.sort(function(_a, _b)
+        {
+            let _weight_diff = GetRankSortWeight(_b) - GetRankSortWeight(_a);
+            if (_weight_diff !== 0) { return _weight_diff; }
+
+            let _entry_a = _a.entry_ts || 9999999999999;
+            let _entry_b = _b.entry_ts || 9999999999999;
+            if (_entry_a !== _entry_b) { return _entry_a - _entry_b; }
+
+            return String(_a.name).localeCompare(String(_b.name), "de");
+        });
+
+        _members_array.forEach(function(_m)
+        {
+            let _own_cls = (_m.id === active_member_id) ? "own-plaque" : "";
+            let _wood_cls = GetMemberWoodClass(_m.wood_type);
+            let _ink_cls = GetMemberInkClass(_m.ink_type, _m.wood_type);
+            let _belt_cfg = GetBeltVisualConfig(_m.belt_color, _m.rank);
+            let _stamp_svg = GetStampSvgHtml(_m.stamp_type, 16);
+
+            let _html = `
+                <div class="nafuda-plaque ${_wood_cls} ${_own_cls}" onclick="HandleNafudaClick('${_m.id}')">
+                    <div class="nafuda-jp ${_ink_cls}">${_m.jp}</div>
+                    <div class="nafuda-stripe ${_belt_cfg.css_class}">${_belt_cfg.sub_mark}</div>
+                    <div class="nafuda-stamp-slot">${_stamp_svg}</div>
+                    <div class="nafuda-romaji ${_ink_cls}">${_m.name}<br>${_m.rank}</div>
+                </div>
+            `;
+
+            if (_m.row === 1) { _r1.innerHTML += _html; }
+            else if (_m.row === 2) { _r2.innerHTML += _html; }
+            else if (_m.row === 3) { _r3.innerHTML += _html; }
+            else { _r4.innerHTML += _html; }
+        });
+    }
+
+    function BuyNafudaCosmetic(category_key, item_value, cost_kuden)
+    {
+        let _m = dojo_members_data[active_member_id];
+
+        if (_m.kuden_xp < cost_kuden)
+        {
+            ShowToastMessage("⚠️ Nicht genug Kuden XP (" + cost_kuden + " benötigt)!");
+            return;
+        }
+
+        _m.kuden_xp -= cost_kuden;
+
+        if (category_key === "wood") { _m.wood_type = item_value; }
+        else if (category_key === "ink") { _m.ink_type = item_value; }
+        else if (category_key === "stamp") { _m.stamp_type = item_value; }
+
+        UpdateTopHeaderUI();
+        RenderNafudakakeBoard();
+        UpdateCosmeticShopUI();
+        SyncMemberStateToGoogleSheet(0);
+        ShowToastMessage("🎨 Nafuda-Veredelung aktiviert & gespeichert!");
+    }
+
+    function UpdateCosmeticShopUI()
+    {
+        let _m = dojo_members_data[active_member_id];
+        if (!_m) { return; }
+
+        document.getElementById("btn_wood_yakisugi").classList.toggle("equipped", _m.wood_type === "yakisugi");
+        document.getElementById("btn_wood_ebony").classList.toggle("equipped", _m.wood_type === "ebony");
+        document.getElementById("btn_ink_gold").classList.toggle("equipped", _m.ink_type === "gold");
+        document.getElementById("btn_ink_silver").classList.toggle("equipped", _m.ink_type === "silver");
+        document.getElementById("btn_stamp_dojo").classList.toggle("equipped", _m.stamp_type === "dojo_stamp");
+        document.getElementById("btn_stamp_bujin").classList.toggle("equipped", _m.stamp_type === "bujin_logo");
+
+        let _wood_names = { standard: "Standard-Zeder", yakisugi: "Yakisugi-Holz (Aktiv)", ebony: "Ebenholz (Aktiv)" };
+        let _ink_names = { standard: "Klassisch", gold: "Goldene Schrift (Aktiv)", silver: "Silberne Schrift (Aktiv)" };
+        let _stamp_names = { none: "Kein Siegel", dojo_stamp: "Roter Dôjô-Stempel (Aktiv)", bujin_logo: "Bujin-Logo (Aktiv)" };
+
+        document.getElementById("ui_wood_status").innerText = _wood_names[_m.wood_type] || "Standard";
+        document.getElementById("ui_ink_status").innerText = _ink_names[_m.ink_type] || "Klassisch";
+        document.getElementById("ui_stamp_status").innerText = _stamp_names[_m.stamp_type] || "Kein Siegel";
+    }
+
+    function HandleNafudaClick(member_id)
+    {
+        if (member_id !== active_member_id)
+        {
+            ShowToastMessage("🔒 Detail-Statistik ist nur für das eigene Nafuda einsehbar.");
+            return;
+        }
+        OpenMemberDashboard(member_id);
+    }
+
+    function OpenMemberDashboard(member_id)
+    {
+        let _m = dojo_members_data[member_id];
+        let _sheet = document.getElementById("ui_modal_sheet");
+        let _wood_cls = GetMemberWoodClass(_m.wood_type);
+        let _ink_cls = GetMemberInkClass(_m.ink_type, _m.wood_type);
+        let _belt_cfg = GetBeltVisualConfig(_m.belt_color, _m.rank);
+
+        _sheet.className = "modal-sheet " + _wood_cls;
+
+        let _watermark = document.getElementById("modal_watermark_jp");
+        _watermark.innerText = _m.jp;
+        _watermark.className = "modal-nafuda-watermark " + _ink_cls;
+
+        document.getElementById("modal_belt_label_top").innerText = "Gürtel: " + _belt_cfg.label;
+
+        let _title_el = document.getElementById("modal_member_name");
+        _title_el.innerText = _m.name + " • " + _m.rank;
+        _title_el.className = _ink_cls;
+
+        document.getElementById("modal_belt_stripe").className = "nafuda-stripe " + _belt_cfg.css_class;
+        document.getElementById("modal_stamp_preview").innerHTML = GetStampSvgHtml(_m.stamp_type, 32);
+
+        document.getElementById("modal_taiden_lvl").innerText = "Lvl " + (Math.floor(_m.trainings / 5) + 1);
+        document.getElementById("modal_month_contrib").innerText = _m.month_contribution + " XP";
+        document.getElementById("modal_kuden_lvl").innerText = "Lvl " + (Math.floor(_m.kuden_xp / 100) + 1);
+        document.getElementById("modal_kuden_xp").innerText = _m.kuden_xp;
+        document.getElementById("modal_total_trainings").innerText = _m.trainings;
+        document.getElementById("modal_streak").innerText = _m.streak_weeks + " Wo.";
+
+        let _bars = document.getElementById("modal_skill_bars");
+        _bars.innerHTML = "";
+        let _stat_keys = Object.keys(_m.stats || {});
+        if (_stat_keys.length === 0)
+        {
+            _bars.innerHTML = `<div style="font-size:0.75rem; color:var(--text-muted);">Noch keine Trainings-Tags gescannt.</div>`;
+        }
+        else
+        {
+            _stat_keys.forEach(function(_topic)
+            {
+                let _cnt = _m.stats[_topic];
+                let _pct = Math.min(100, Math.round((_cnt / 30) * 100));
+                _bars.innerHTML += `
+                    <div style="margin-bottom: 7px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.74rem;">
+                            <span>${_topic}</span>
+                            <span style="color:var(--accent-gold); font-weight:700;">${_cnt}x</span>
+                        </div>
+                        <div class="progress-track" style="height:6px; margin:3px 0;"><div class="progress-fill" style="width:${_pct}%;"></div></div>
+                    </div>
+                `;
+            });
+        }
+
+        let _logs_box = document.getElementById("modal_recent_logs");
+        let _last_three = (_m.logs || []).slice(0, 3);
+        if (_last_three.length === 0)
+        {
+            _logs_box.innerHTML = `<div style="color:var(--text-muted);">Noch keine Trainings-Check-Ins verbucht.</div>`;
+        }
+        else
+        {
+            _logs_box.innerHTML = _last_three.map(function(_log)
+            {
+                return `
+                    <div style="padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                        <div style="font-weight: 700; color: #fff;">✔ ${_log.date}</div>
+                        <div style="color: var(--accent-gold); font-size: 0.72rem;">Trainiert: ${_log.topics}</div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        document.getElementById("ui_member_modal").classList.add("open");
+    }
+
+    function CloseMemberDashboard()
+    {
+        document.getElementById("ui_member_modal").classList.remove("open");
+    }
+
+    // =========================================================================
+    // COOPERATIVE DAM BUILDING & TRAINER PREVIEW
+    // =========================================================================
+
+    function ContributeTaidenToDam(amount_to_spend)
+    {
+        let _m = dojo_members_data[active_member_id];
+        if (dojo_dam_stage >= 50)
+        {
+            ShowToastMessage("🌸 Stufe 50 ist bereits vollständig erreicht!");
+            return;
+        }
+        if (_m.taiden_xp < amount_to_spend)
+        {
+            ShowToastMessage("⚠️ Nicht genug Taiden XP! Tausche Kuden XP oder scanne im Training.");
+            return;
+        }
+
+        _m.taiden_xp -= amount_to_spend;
+        _m.month_contribution += amount_to_spend;
+        dam_stage_current_xp += amount_to_spend;
+
+        while (dam_stage_current_xp >= dam_stage_required_xp && dojo_dam_stage < 50)
+        {
+            dam_stage_current_xp -= dam_stage_required_xp;
+            dojo_dam_stage += 1;
+        }
+
+        UpdateTopHeaderUI();
+        RenderDamVisualStage(dojo_dam_stage);
+        RenderMonthlyLeaderboards();
+        SyncMemberStateToGoogleSheet(amount_to_spend);
+        ShowToastMessage("🪵 +" + amount_to_spend + " Taiden XP in den Dôjô Damm eingezahlt!");
+    }
+
+    function PreviewDamVisualStageOnly(preview_stage_num)
+    {
+        RenderDamGraphicsByLevel(Number(preview_stage_num), true);
+    }
+
+    function ResetDamToLiveStage()
+    {
+        RenderDamVisualStage(dojo_dam_stage);
+        ShowToastMessage("🏯 Zurück zur offiziellen Live-Stufe (" + dojo_dam_stage + ")!");
+    }
+
+    function RenderDamVisualStage(live_stage_num)
+    {
+        dojo_dam_stage = Number(live_stage_num);
+        document.getElementById("ui_stage_slider").value = dojo_dam_stage;
+        RenderDamGraphicsByLevel(dojo_dam_stage, false);
+    }
+
+    // Checks if a custom sprite (e.g. sprites/spr_dam_lvl_12.png) exists
+    function TryLoadCustomDamSprite(stage_num)
+    {
+	let _sprite_img = document.getElementById("ui_custom_dam_sprite");
+	let _svg_stage = document.querySelector(".svg-stage");
+	let _sprite_path = "sprites/spr_dam_lvl_" + stage_num + ".png";
+
+	_sprite_img.onload = function()
+	{
+		// Custom PNG found -> show PNG and hide default SVG
+		_sprite_img.style.display = "block";
+		_svg_stage.style.display = "none";
+	};
+
+	_sprite_img.onerror = function()
+	{
+		// No custom PNG for this level yet -> fallback to dynamic SVG
+		_sprite_img.style.display = "none";
+		_svg_stage.style.display = "block";
+	};
+
+	_sprite_img.src = _sprite_path;
+    }
+
+    function RenderDamGraphicsByLevel(stage_num, is_preview)
+    {
+	TryLoadCustomDamSprite(stage_num);        
+
+	let _lvl = Number(stage_num);
+        let _badge_suffix = is_preview ? " (Vorschau)" : " / 50";
+        document.getElementById("ui_dam_level_badge").innerText = "Stufe " + _lvl + _badge_suffix;
+
+        let _phase = "PHASE 1: DAMM-FUNDAMENT (1–5)";
+        let _title = "Stufe " + _lvl + ": Sträucher & Baumstämme im Mellensee";
+        if (_lvl >= 6 && _lvl <= 10) { _phase = "PHASE 2: SCHREIN-BIBERBURG (6–10)"; _title = "Stufe " + _lvl + ": Biberburg im Stil eines Schreins"; }
+        else if (_lvl >= 11 && _lvl <= 15) { _phase = "PHASE 3: DAS UMIDANUKI DÔJÔ (11–15)"; _title = "Stufe " + _lvl + ": Dôjô-Halle mit Schildern & Niô-Wächtern"; }
+        else if (_lvl >= 16 && _lvl <= 19) { _phase = "PHASE 4: ROTE TORII-ALLEE (16–19)"; _title = "Stufe " + _lvl + ": Torii-Bögen weisen den Weg"; }
+        else if (_lvl >= 20 && _lvl <= 25) { _phase = "PHASE 5: AUSSENTRAININGSBEREICH (20–25)"; _title = "Stufe " + _lvl + ": Schnitttest, Shuriken, Pfähle & Meditationsinsel"; }
+        else if (_lvl >= 26 && _lvl <= 35) { _phase = "PHASE 6: JAPANISCHES SCHLOSS (26–35)"; _title = "Stufe " + _lvl + ": Das Shiro erhebt sich im Hintergrund"; }
+        else if (_lvl >= 36 && _lvl <= 40) { _phase = "PHASE 7: RÜSTUNGEN & NANA KOROBI (36–40)"; _title = "Stufe " + _lvl + ": Samurai-Rüstungen & Tafel 七転び八起き"; }
+        else if (_lvl >= 41) { _phase = "PHASE 8: SAKURA & JAPANISCHER GARTEN (41–50)"; _title = "Stufe " + _lvl + ": Blühende Sakura-Bäume & Schlossgarten"; }
+
+        document.getElementById("ui_stage_phase").innerText = _phase;
+        document.getElementById("ui_stage_title").innerText = _title;
+
+        document.getElementById("dam_lvl_3_5").setAttribute("opacity", _lvl >= 3 ? "1" : "0");
+        document.getElementById("layer_shrine_lodge").setAttribute("opacity", _lvl >= 6 ? "1" : "0");
+        document.getElementById("shrine_roof").setAttribute("opacity", _lvl >= 8 ? "1" : "0");
+        document.getElementById("layer_dojo_hall").setAttribute("opacity", _lvl >= 11 ? "1" : "0");
+        document.getElementById("nio_statues").setAttribute("opacity", _lvl >= 13 ? "1" : "0");
+        document.getElementById("layer_torii_row").setAttribute("opacity", _lvl >= 16 ? "1" : "0");
+        document.getElementById("torii_1").setAttribute("opacity", _lvl >= 16 ? "1" : "0");
+        document.getElementById("torii_2").setAttribute("opacity", _lvl >= 18 ? "1" : "0");
+        document.getElementById("torii_3").setAttribute("opacity", _lvl >= 19 ? "1" : "0");
+        document.getElementById("layer_outdoor_training").setAttribute("opacity", _lvl >= 20 ? "1" : "0");
+        document.getElementById("out_tameshigiri").setAttribute("opacity", _lvl >= 21 ? "1" : "0");
+        document.getElementById("out_shuriken").setAttribute("opacity", _lvl >= 22 ? "1" : "0");
+        document.getElementById("out_poles").setAttribute("opacity", _lvl >= 23 ? "1" : "0");
+        document.getElementById("out_archery").setAttribute("opacity", _lvl >= 24 ? "1" : "0");
+        document.getElementById("out_meditation_island").setAttribute("opacity", _lvl >= 25 ? "1" : "0");
+        document.getElementById("layer_castle").setAttribute("opacity", _lvl >= 26 ? "1" : "0");
+        document.getElementById("castle_tier1").setAttribute("opacity", _lvl >= 28 ? "1" : "0");
+        document.getElementById("castle_tier2").setAttribute("opacity", _lvl >= 31 ? "1" : "0");
+        document.getElementById("castle_top").setAttribute("opacity", _lvl >= 34 ? "1" : "0");
+        document.getElementById("layer_decor_spirit").setAttribute("opacity", _lvl >= 36 ? "1" : "0");
+        document.getElementById("decor_nanakorobi").setAttribute("opacity", _lvl >= 40 ? "1" : "0");
+        document.getElementById("layer_sakura_garden").setAttribute("opacity", _lvl >= 41 ? "1" : "0");
+        document.getElementById("layer_sakura_petals").setAttribute("opacity", _lvl >= 44 ? "1" : "0");
+    }
+
+    function GetSortedCurrentMonthTop3()
+    {
+        let _arr = Object.keys(dojo_members_data).map(function(_k)
+        {
+            return { name: dojo_members_data[_k].name, xp: dojo_members_data[_k].month_contribution || 0 };
+        });
+        _arr.sort(function(_a, _b) { return _b.xp - _a.xp; });
+        return _arr.slice(0, 3);
+    }
+
+    function RenderMonthlyLeaderboards()
+    {
+        let _curr = GetSortedCurrentMonthTop3();
+        let _medals = ["🥇", "🥈", "🥉"];
+
+        document.getElementById("ui_top3_current").innerHTML = _curr.map(function(_e, _i)
+        {
+            return `<div class="podium-row"><span>${_medals[_i]} ${_e.name}</span><span class="podium-xp">${_e.xp} 🪵</span></div>`;
+        }).join("");
+
+        document.getElementById("ui_top3_last").innerHTML = last_month_top3_list.map(function(_e, _i)
+        {
+            return `<div class="podium-row"><span>${_medals[_i]} ${_e.name}</span><span class="podium-xp">${_e.xp} 🪵</span></div>`;
+        }).join("");
+    }
+
+    // =========================================================================
+    // KUDEN QUIZ (+10 XP), 100:1 EXCHANGE & SHURIKEN WOOD-SPLITTER
+    // =========================================================================
+
+    function RenderKudenQuiz()
+    {
+        let _q = kuden_quiz_questions[current_quiz_index];
+        document.getElementById("ui_quiz_cat").innerText = _q.category + " (" + (current_quiz_index + 1) + "/" + kuden_quiz_questions.length + ")";
+        document.getElementById("ui_quiz_question").innerText = _q.question;
+        let _box = document.getElementById("ui_quiz_options");
+        _box.innerHTML = "";
+
+        _q.options.forEach(function(_opt, _idx)
+        {
+            let _btn = document.createElement("button");
+            _btn.className = "quiz-opt-btn";
+            _btn.innerText = _opt;
+            _btn.onclick = function()
+            {
+                if (_idx === _q.correct_index)
+                {
+                    _btn.classList.add("correct");
+                    dojo_members_data[active_member_id].kuden_xp += 10;
+                    UpdateTopHeaderUI();
+                    SyncMemberStateToGoogleSheet(0);
+                    ShowToastMessage("📜 Richtig! +10 Kuden XP");
+                }
+                else
+                {
+                    _btn.classList.add("wrong");
+                }
+                setTimeout(function()
+                {
+                    current_quiz_index = (current_quiz_index + 1) % kuden_quiz_questions.length;
+                    RenderKudenQuiz();
+                }, 950);
+            };
+            _box.appendChild(_btn);
+        });
+    }
+
+    function ExchangeKudenToTaiden()
+    {
+        let _m = dojo_members_data[active_member_id];
+        if (_m.kuden_xp < 100)
+        {
+            ShowToastMessage("⚠️ Du benötigst 100 Kuden XP für den 100:1-Tausch!");
+            return;
+        }
+        _m.kuden_xp -= 100;
+        _m.taiden_xp += 1;
+        UpdateTopHeaderUI();
+        SyncMemberStateToGoogleSheet(0);
+        ShowToastMessage("🔄 100 Kuden XP ➔ +1 Taiden XP getauscht!");
+    }
+
+    // --- SHURIKEN WOOD-SPLITTER ---
+    let wood_canvas = null;
+    let wood_ctx = null;
+    let game_active = false;
+    let game_seconds = 20;
+    let game_hits = 0;
+    let game_timer_interval = null;
+    let game_spawner_interval = null;
+    let flying_logs = [];
+    let split_halves = [];
+    let flying_shurikens = [];
+
+    function InitializeShurikenCanvas()
+    {
+        wood_canvas = document.getElementById("shuriken_canvas");
+        wood_ctx = wood_canvas.getContext("2d");
+
+        wood_canvas.addEventListener("pointerdown", function(_ev)
+        {
+            if (!game_active) { return; }
+            let _rect = wood_canvas.getBoundingClientRect();
+            let _scale_x = wood_canvas.width / _rect.width;
+            let _scale_y = wood_canvas.height / _rect.height;
+            let _click_x = (_ev.clientX - _rect.left) * _scale_x;
+            let _click_y = (_ev.clientY - _rect.top) * _scale_y;
+            CheckLogHit(_click_x, _click_y);
+        });
+    }
+
+    function StartShurikenWoodGame()
+    {
+        let _m = dojo_members_data[active_member_id];
+        if (_m.kuden_xp < 50)
+        {
+            ShowToastMessage("⚠️ Du benötigst 50 Kuden XP für eine Runde!");
+            return;
+        }
+
+        _m.kuden_xp -= 50;
+        UpdateTopHeaderUI();
+        SyncMemberStateToGoogleSheet(0);
+
+        game_active = true;
+        game_seconds = 20;
+        game_hits = 0;
+        flying_logs = [];
+        split_halves = [];
+        flying_shurikens = [];
+
+        document.getElementById("ui_game_timer").innerText = "20s";
+        document.getElementById("ui_game_hits").innerText = "0";
+        document.getElementById("ui_arena_overlay").style.display = "none";
+
+        SpawnTossedLog();
+
+        if (game_timer_interval) { clearInterval(game_timer_interval); }
+        if (game_spawner_interval) { clearInterval(game_spawner_interval); }
+
+        game_spawner_interval = setInterval(function()
+        {
+            if (game_active && game_seconds > 1)
+            {
+                SpawnTossedLog();
+                if (Math.random() < 0.35) { setTimeout(SpawnTossedLog, 220); }
+            }
+        }, 680);
+
+        game_timer_interval = setInterval(function()
+        {
+            game_seconds -= 1;
+            document.getElementById("ui_game_timer").innerText = game_seconds + "s";
+            if (game_seconds <= 0) { EndShurikenWoodGame(); }
+        }, 1000);
+
+        requestAnimationFrame(UpdateShurikenGameLoop);
+    }
+
+    function SpawnTossedLog()
+    {
+        let _start_x = 50 + Math.random() * (wood_canvas.width - 100);
+        let _vx = (_start_x < wood_canvas.width / 2) ? (1.0 + Math.random() * 1.6) : -(1.0 + Math.random() * 1.6);
+        let _vy = -(6.6 + Math.random() * 1.9);
+
+        flying_logs.push({
+            x: _start_x, y: wood_canvas.height + 20,
+            vx: _vx, vy: _vy,
+            angle: Math.random() * Math.PI, v_angle: (Math.random() - 0.5) * 0.08,
+            radius: 28
+        });
+    }
+
+    function CheckLogHit(tap_x, tap_y)
+    {
+        flying_shurikens.push({ x: wood_canvas.width / 2, y: wood_canvas.height, tx: tap_x, ty: tap_y, angle: 0, life: 10 });
+
+        for (let _i = flying_logs.length - 1; _i >= 0; _i--)
+        {
+            let _log = flying_logs[_i];
+            let _dx = tap_x - _log.x;
+            let _dy = tap_y - _log.y;
+            if (Math.sqrt(_dx * _dx + _dy * _dy) <= _log.radius + 20)
+            {
+                split_halves.push({ x: _log.x - 10, y: _log.y, vx: -2.8, vy: -2.0, angle: _log.angle - 0.3, v_angle: -0.12 });
+                split_halves.push({ x: _log.x + 10, y: _log.y, vx: 2.8, vy: -2.0, angle: _log.angle + 0.3, v_angle: 0.12 });
+                flying_logs.splice(_i, 1);
+                game_hits += 1;
+                document.getElementById("ui_game_hits").innerText = game_hits;
+                break;
+            }
+        }
+    }
+
+    function UpdateShurikenGameLoop()
+    {
+        if (!game_active) { return; }
+        wood_ctx.clearRect(0, 0, wood_canvas.width, wood_canvas.height);
+
+        for (let _i = flying_logs.length - 1; _i >= 0; _i--)
+        {
+            let _l = flying_logs[_i];
+            _l.x += _l.vx; _l.y += _l.vy; _l.vy += 0.17; _l.angle += _l.v_angle;
+            DrawWoodLogPiece(_l.x, _l.y, _l.angle, 48, 20, false);
+            if (_l.y > wood_canvas.height + 50 && _l.vy > 0) { flying_logs.splice(_i, 1); }
+        }
+
+        for (let _j = split_halves.length - 1; _j >= 0; _j--)
+        {
+            let _h = split_halves[_j];
+            _h.x += _h.vx; _h.y += _h.vy; _h.vy += 0.28; _h.angle += _h.v_angle;
+            DrawWoodLogPiece(_h.x, _h.y, _h.angle, 24, 18, true);
+            if (_h.y > wood_canvas.height + 50) { split_halves.splice(_j, 1); }
+        }
+
+        for (let _k = flying_shurikens.length - 1; _k >= 0; _k--)
+        {
+            let _s = flying_shurikens[_k];
+            _s.x += (_s.tx - _s.x) * 0.45; _s.y += (_s.ty - _s.y) * 0.45; _s.angle += 0.6; _s.life -= 1;
+            DrawShurikenStar(_s.x, _s.y, _s.angle);
+            if (_s.life <= 0) { flying_shurikens.splice(_k, 1); }
+        }
+
+        requestAnimationFrame(UpdateShurikenGameLoop);
+    }
+
+    function DrawWoodLogPiece(x, y, angle, width, height, is_split_half)
+    {
+        wood_ctx.save();
+        wood_ctx.translate(x, y);
+        wood_ctx.rotate(angle);
+        wood_ctx.fillStyle = is_split_half ? "#d99b66" : "#6e3d1c";
+        wood_ctx.strokeStyle = "#3b1e0a";
+        wood_ctx.lineWidth = 2;
+        wood_ctx.fillRect(-width / 2, -height / 2, width, height);
+        wood_ctx.strokeRect(-width / 2, -height / 2, width, height);
+        wood_ctx.fillStyle = "#f3dec3";
+        wood_ctx.fillRect(width / 2 - 5, -height / 2 + 2, 4, height - 4);
+        wood_ctx.restore();
+    }
+
+    function DrawShurikenStar(x, y, angle)
+    {
+        wood_ctx.save();
+        wood_ctx.translate(x, y);
+        wood_ctx.rotate(angle);
+        wood_ctx.fillStyle = "#e2e8f0";
+        for (let _p = 0; _p < 4; _p++)
+        {
+            wood_ctx.rotate(Math.PI / 2);
+            wood_ctx.beginPath();
+            wood_ctx.moveTo(0, -14); wood_ctx.lineTo(4, -3); wood_ctx.lineTo(-4, -3);
+            wood_ctx.closePath(); wood_ctx.fill();
+        }
+        wood_ctx.restore();
+    }
+
+    function EndShurikenWoodGame()
+    {
+        game_active = false;
+        clearInterval(game_timer_interval);
+        clearInterval(game_spawner_interval);
+
+        let _overlay = document.getElementById("ui_arena_overlay");
+        let _msg = document.getElementById("ui_arena_msg");
+        _overlay.style.display = "flex";
+
+        if (game_hits >= 20)
+        {
+            dojo_members_data[active_member_id].kuden_xp += 100;
+            UpdateTopHeaderUI();
+            SyncMemberStateToGoogleSheet(0);
+            _msg.innerText = "🥷 Meisterhaft! " + game_hits + " Hölzer gespalten! Du erhältst +100 Kuden XP!";
+            ShowToastMessage("🎯 20+ Treffer! +100 Kuden XP gewonnen!");
+        }
+        else if (game_hits >= 15)
+        {
+            dojo_members_data[active_member_id].kuden_xp += 50;
+            UpdateTopHeaderUI();
+            SyncMemberStateToGoogleSheet(0);
+            _msg.innerText = "🪵 Gut gemacht! " + game_hits + " Hölzer gespalten – du erhältst deine 50 Kuden XP zurück!";
+            ShowToastMessage("📜 15+ Treffer! Einsatz (50 Kuden XP) zurückerhalten!");
+        }
+        else
+        {
+            _msg.innerText = game_hits + " Hölzer gespalten (Mindestens 15 für 50 XP oder 20+ für 100 XP nötig).";
+        }
+    }
+
+    // =========================================================================
+    // CAMERA QR SCANNER & SHIDOSHI QR GENERATOR
+    // =========================================================================
+
+    function RenderTrainerTagCloud()
+    {
+        let _cloud = document.getElementById("ui_trainer_tag_cloud");
+        _cloud.innerHTML = "";
+        available_training_tags.forEach(function(_t)
+        {
+            let _sel = selected_session_tags.indexOf(_t) !== -1;
+            let _chip = document.createElement("span");
+            _chip.className = "tag-chip" + (_sel ? " selected" : "");
+            _chip.innerText = _t;
+            _chip.onclick = function()
+            {
+                let _i = selected_session_tags.indexOf(_t);
+                if (_i === -1) { selected_session_tags.push(_t); }
+                else if (selected_session_tags.length > 1) { selected_session_tags.splice(_i, 1); }
+                RenderTrainerTagCloud();
+            };
+            _cloud.appendChild(_chip);
+        });
+    }
+
+    function SelectTrainingUnit(unit_name, clicked_btn)
+    {
+        selected_training_unit = unit_name;
+        let _all_btns = document.querySelectorAll(".unit-btn");
+        _all_btns.forEach(function(_b) { _b.classList.remove("active-unit"); });
+        if (clicked_btn) { clicked_btn.classList.add("active-unit"); }
+        ShowToastMessage("🥋 Einheit gewählt: " + unit_name);
+    }
+
+    async function GenerateTaggedQrCode()
+    {
+        let _generated_token = "TAIDEN-" + Math.floor(1000 + Math.random() * 9000);
+
+        if (is_live_sheet_mode && google_script_api_url)
+        {
+            try
+            {
+                let _res = await fetch(google_script_api_url, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "generate_shidoshi_qr",
+                        member_id: active_member_id,
+                        pin_code: saved_user_pin,
+                        unit_name: selected_training_unit,
+                        tags: selected_session_tags
+                    })
+                });
+                let _data = await _res.json();
+                if (_data.status === "ok" && _data.qr_token)
+                {
+                    _generated_token = _data.qr_token;
+                }
+            }
+            catch (_e) {}
+        }
+
+        document.getElementById("ui_qr_unit_title").innerText = selected_training_unit.toUpperCase();
+        document.getElementById("ui_qr_tags_label").innerText = "Inhalte: " + selected_session_tags.join(", ");
+        document.getElementById("ui_qr_code_pin").innerText = _generated_token;
+        document.getElementById("input_scan_token").value = _generated_token;
+
+        let _qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(_generated_token);
+        document.getElementById("ui_real_qr_img").src = _qr_url;
+        document.getElementById("ui_qr_result_box").style.display = "block";
+
+        ShowToastMessage("🔐 QR-Code (" + selected_training_unit + ") erzeugt!");
+    }
+
+    function ToggleCameraQrScanner()
+    {
+        if (is_camera_scanning)
+        {
+            StopCameraQrScanner();
+            return;
+        }
+
+        let _reader_el = document.getElementById("qr_camera_reader");
+        let _btn = document.getElementById("btn_toggle_camera");
+        _reader_el.style.display = "block";
+        _btn.innerText = "⏹️ Kamera-Scanner beenden";
+
+        if (!html5_qr_scanner)
+        {
+            html5_qr_scanner = new Html5Qrcode("qr_camera_reader");
+        }
+
+        is_camera_scanning = true;
+        html5_qr_scanner.start(
+            { facingMode: "environment" },
+            { fps: 10, qrbox: { width: 220, height: 220 } },
+            function(_decoded_text)
+            {
+                StopCameraQrScanner();
+                document.getElementById("input_scan_token").value = _decoded_text.trim();
+                SubmitTrainingCheckInCode();
+            },
+            function(_error_msg) {}
+        ).catch(function(_err)
+        {
+            is_camera_scanning = false;
+            _reader_el.style.display = "none";
+            _btn.innerText = "📷 QR-Code mit Kamera scannen";
+            ShowToastMessage("⚠️ Kamerazugriff erfordert HTTPS – bitte Code-Eingabe nutzen.");
+        });
+    }
+
+    function StopCameraQrScanner()
+    {
+        if (html5_qr_scanner && is_camera_scanning)
+        {
+            html5_qr_scanner.stop().then(function()
+            {
+                is_camera_scanning = false;
+                document.getElementById("qr_camera_reader").style.display = "none";
+                document.getElementById("btn_toggle_camera").innerText = "📷 QR-Code mit Kamera scannen";
+            }).catch(function()
+            {
+                is_camera_scanning = false;
+            });
+        }
+    }
+
+    async function SubmitTrainingCheckInCode()
+    {
+        let _token = document.getElementById("input_scan_token").value.trim();
+        let _m = dojo_members_data[active_member_id];
+
+        if (_token === "")
+        {
+            ShowToastMessage("⚠️ Bitte zuerst einen QR-Code scannen oder eingeben!");
+            return;
+        }
+
+        if (is_live_sheet_mode && google_script_api_url)
+        {
+            try
+            {
+                let _res = await fetch(google_script_api_url, {
+                    method: "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({
+                        action: "scan_training_qr",
+                        member_id: active_member_id,
+                        pin_code: saved_user_pin,
+                        qr_token: _token
+                    })
+                });
+                let _data = await _res.json();
+                if (_data.status !== "ok")
+                {
+                    ShowToastMessage("❌ " + (_data.message || "Code ungültig"));
+                    return;
+                }
+                _m.taiden_xp = _data.taiden_xp;
+                _m.trainings = _data.trainings;
+                _m.stats = _data.stats;
+                _m.logs = _data.logs;
+                UpdateTopHeaderUI();
+                ShowToastMessage("🪵 +10 Taiden XP & Training im Google Sheet verbucht!");
+                return;
+            }
+            catch (_e) {}
+        }
+
+        _m.taiden_xp += 10;
+        _m.trainings += 1;
+        selected_session_tags.forEach(function(_t) { _m.stats[_t] = (_m.stats[_t] || 0) + 1; });
+        _m.logs.unshift({ date: "Heute • " + selected_training_unit, topics: selected_session_tags.join(", ") });
+        UpdateTopHeaderUI();
+        ShowToastMessage("🪵 +10 Taiden XP & Training auf deinem Nafuda eingetragen!");
+    }
+
+    function ShowToastMessage(msg_text)
+    {
+        let _t = document.getElementById("ui_toast");
+        _t.innerText = msg_text;
+        _t.classList.add("show");
+        setTimeout(function() { _t.classList.remove("show"); }, 2800);
+    }
+
+    window.onload = InitializeDojoApp;
+</script>
+</body>
+</html>
