@@ -380,21 +380,22 @@ async function ResumeActiveDojoSession()
     {
         is_logging_in = false;
         _btn.disabled = false;
-        _btn.textContent = "🥋 Jetzt im Dôjô anmelden";
+        _btn.textContent = "Im Dôjô anmelden";
     }
 }
 
 function UpdateServerConfigDisclosureUI()
 {
     let _details = document.getElementById("ui_server_config_details");
-    let _summary = document.getElementById("ui_server_config_summary");
-    if (!_details || !_summary) { return; }
+    let _label = document.getElementById("ui_server_summary_text");
+    if (!_details || !_label) { return; }
 
     let _has_url = (google_script_api_url.trim() !== "");
     _details.open = !_has_url;
-    _summary.textContent = _has_url
-        ? "⚙️ Dôjô-Server verbunden (URL ändern)"
-        : "⚙️ Dôjô-Server-URL eingeben";
+    _details.classList.toggle("is-connected", _has_url);
+    _label.textContent = _has_url
+        ? "Dôjô-Server verbunden • URL ändern"
+        : "Dôjô-Server verbinden";
 }
 
 function TogglePinVisibility()
@@ -407,7 +408,6 @@ function TogglePinVisibility()
     _pin_input.type = _show_pin ? "text" : "password";
     _toggle_btn.setAttribute("aria-pressed", _show_pin ? "true" : "false");
     _toggle_btn.setAttribute("aria-label", _show_pin ? "PIN verbergen" : "PIN anzeigen");
-    _toggle_btn.textContent = _show_pin ? "🙈" : "👁️";
 }
 
 function TryStoreBrowserCredentials(login_form_el)
@@ -527,7 +527,7 @@ async function PerformLiveSheetLogin()
     {
         is_logging_in = false;
         _btn.disabled = false;
-        _btn.textContent = "🥋 Jetzt im Dôjô anmelden";
+        _btn.textContent = "Im Dôjô anmelden";
     }
 }
 
@@ -570,7 +570,6 @@ function ResetLocalSessionUi()
     {
         _toggle_btn.setAttribute("aria-pressed", "false");
         _toggle_btn.setAttribute("aria-label", "PIN anzeigen");
-        _toggle_btn.textContent = "👁️";
     }
 
     ApplyTrainerPermissions(false);

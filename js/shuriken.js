@@ -132,10 +132,10 @@ async function StartShurikenWoodGame()
                 shuriken_extra_spawn_timeout = setTimeout(function()
                 {
                     if (shuriken_game_active) { SpawnTossedLog(); }
-                }, 220);
+                }, 200);
             }
         }
-    }, 680);
+    }, 540);
 
     shuriken_timer_interval = setInterval(function()
     {
@@ -173,7 +173,7 @@ function StopShurikenWoodGame(is_silent)
     if (_overlay) { _overlay.style.display = "flex"; }
     if (!is_silent && _msg)
     {
-        _msg.textContent = "Triff mindestens 15 Hölzer (50 XP) oder 20+ Hölzer (100 XP)!";
+        _msg.textContent = "Triff mindestens 15 Hölzer (50 XP) oder 30+ Hölzer (100 XP)!";
     }
 }
 
@@ -355,7 +355,7 @@ async function EndShurikenWoodGame()
     let _hits = shuriken_game_hits;
     if (_hits < 15 || !_token)
     {
-        _msg.textContent = _hits + " Hölzer gespalten (Mindestens 15 für 50 XP oder 20+ für 100 XP nötig).";
+        _msg.textContent = _hits + " Hölzer gespalten (Mindestens 15 für 50 XP oder 30+ für 100 XP nötig).";
         if (_token)
         {
             await SendAuthenticatedAction("shuriken_finish", { round_token: _token, hits: _hits }, true);
@@ -378,7 +378,7 @@ async function EndShurikenWoodGame()
     if (_reward >= 100)
     {
         _msg.textContent = "🥷 Meisterhaft! " + _hits + " Hölzer gespalten! Du erhältst +100 Kuden XP!";
-        ShowToastMessage("🎯 20+ Treffer! +100 Kuden XP gewonnen!");
+        ShowToastMessage("🎯 30+ Treffer! +100 Kuden XP gewonnen!");
     }
     else if (_reward >= 50)
     {
@@ -387,6 +387,6 @@ async function EndShurikenWoodGame()
     }
     else
     {
-        _msg.textContent = _hits + " Hölzer gespalten (Mindestens 15 für 50 XP oder 20+ für 100 XP nötig).";
+        _msg.textContent = _hits + " Hölzer gespalten (Mindestens 15 für 50 XP oder 30+ für 100 XP nötig).";
     }
 }

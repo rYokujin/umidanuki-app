@@ -7,8 +7,8 @@
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#0d0e12",
-  "theme_color": "#1f120d",
+  "background_color": "#0b090a",
+  "theme_color": "#140b08",
   "icons": [
     {
       "src": "sprites/spr_dojo_logo.png",
