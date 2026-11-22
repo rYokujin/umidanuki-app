@@ -553,7 +553,7 @@
             z-index: 2;
         }
 
-        /* Pure Authentic Belt Colors */
+        /* Pure Authentic Belt Colors (Black, Green, Red, Pure Yellow, White) */
         .nafuda-stripe {
             width: 100%;
             height: 9px;
@@ -655,7 +655,7 @@
             cursor: crosshair;
         }
 
-        /* 2.) Fixed Quiz Box & Options Display */
+        /* Quiz Box & Options Display */
         .quiz-question-box {
             background: #12141a;
             border: 1px solid rgba(255,255,255,0.08);
@@ -691,7 +691,7 @@
         .quiz-opt-btn.correct { background: rgba(46, 204, 113, 0.25); border-color: var(--success-green); }
         .quiz-opt-btn.wrong { background: rgba(231, 76, 60, 0.25); border-color: var(--danger-red); }
 
-        /* 2.) Fixed Tag Cloud Display in QR Generator */
+        /* Tag Cloud Display in QR Generator */
         .tag-cloud {
             display: flex;
             flex-wrap: wrap;
@@ -882,7 +882,7 @@
     <div id="ui_toast" class="toast">Ganbatte!</div>
 
     <!-- =================================================================
-         LOGIN OVERLAY (LANDING PAGE - NO OFFLINE MODE, CUSTOM SPRITE LOGO)
+         LOGIN OVERLAY (LANDING PAGE - SERVER LOGIN ONLY)
          ================================================================= -->
     <div id="ui_login_screen" class="login-screen">
         <div class="login-card">
@@ -955,7 +955,7 @@
                 <span class="scene-level-badge" id="ui_dam_level_badge">Stufe 1 / 50</span>
             </div>
 
-            <!-- Custom Sprite Image Container -->
+            <!-- Custom Sprite Image Container (automatically shown if PNG exists) -->
             <img id="ui_custom_dam_sprite" src="" alt="Dôjô Damm" style="width: 100%; height: 235px; object-fit: cover; display: none;" />
 
             <!-- 50-Stage SVG Landscape Fallback -->
@@ -1091,7 +1091,7 @@
             </svg>
 
             <div class="stage-banner">
-                <div class="stage-phase-name" id="ui_stage_phase">PHASE 1: DAMM-FUNDAMENT</div>
+                <div class="stage-phase-name" id="ui_stage_phase">PHASE 1: DAMM-FUNDAMENT (1–5)</div>
                 <div class="stage-desc-text" id="ui_stage_title">Stufe 1: Sträucher & Baumstämme im Mellensee</div>
             </div>
         </div>
@@ -1409,7 +1409,7 @@
 
 <script>
     // =========================================================================
-    // GLOBAL STATE VARIABLES (ZERO HARDCODED MEMBER DATA!)
+    // GLOBAL STATE VARIABLES (ZERO HARDCODED MEMBER DATA)
     // =========================================================================
     let google_script_api_url = localStorage.getItem("umidanuki_api_url") || "";
     let saved_user_pin = localStorage.getItem("umidanuki_user_pin") || "";
@@ -1419,7 +1419,7 @@
     let dam_stage_current_xp = 0;
     let dam_stage_required_xp = 10;
     let active_member_id = "";
-    let dojo_members_data = {}; // Strictly empty until authenticated via Google Sheet!
+    let dojo_members_data = {};
     let last_month_top3_list = [];
 
     let selected_training_unit = "Senpai-Training";
@@ -1429,6 +1429,7 @@
     let html5_qr_scanner = null;
     let is_camera_scanning = false;
 
+    // 31 Bujinkan training categories for QR session tagging
     const available_training_tags = [
         "Rei Hô / Etikette", "Kamae", "Ukemi Waza", "Taihen Jutsu", "Sabaki Waza",
         "Shinobi Aruki Jutsu", "Hoken Jûrôppô", "Uke Waza", "Ha Jutsu Kyû Hô",
@@ -1439,9 +1440,7 @@
         "Gikan Ryû", "Gyokushin Ryû"
     ];
 
-    // =========================================================================
-    // KOMPLETTER KUDEN-FRAGENPOOL (135 FRAGEN: GOOGLE FORMS + KIHON + CURRICULUM)
-    // =========================================================================
+    // Complete Kuden quiz question pool (Japanese for Budoka + Kihon Book + Curriculum)
     const kuden_quiz_questions = [
         { category: "Japanisch für Budôka", question: "Was bedeutet ‚Uke‘?", options: ["‚Empfänger‘ einer Technik", "Position/Stellung", "Angriff/Schlag", "Verteidiger"], correct_index: 0 },
         { category: "Japanisch für Budôka", question: "Wie heißt der Ausführende einer Technik?", options: ["Tori", "Migi", "Nage", "Tsuki"], correct_index: 0 },
@@ -1543,8 +1542,6 @@
         { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Umidanuki‘ (海狸)?", options: ["Wurfstern", "Biber", "Maus", "Otter"], correct_index: 1 },
         { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Waza‘?", options: ["Technik / Prinzip", "Waffe", "Eine Art zu sitzen", "Eine Körperhaltung"], correct_index: 0 },
         { category: "Japanisch für Budôka", question: "Was bezeichnet der japanische Begriff ‚Yoko‘?", options: ["nach vorne gerichtet", "zur Seite gerichtet", "nach hinten gerichtet", "nach unten gerichtet"], correct_index: 1 },
-
-        // --- TEIL B: FRAGEN AUS DEM KIHON-BUCH ("UMIDANUKI DÔJÔ NO KIHON") ---
         { category: "Kihon-Buch • Geschichte", question: "Wer war der letzte aktive Shinobi und Lehrer von Soke Masaaki Hatsumi?", options: ["Takamatsu Toshitsugu", "Jigorô Kanô", "Morihei Ueshiba", "Miyamoto Musashi"], correct_index: 0 },
         { category: "Kihon-Buch • 9 Schulen", question: "Welche 3 der 9 Schulen im Bujinkan sind traditionelle Ninja-Schulen (Ninpô)?", options: ["Tôgakure Ryû, Kumogakure Ryû, Gyokushin Ryû", "Gyokko Ryû, Kotô Ryû, Gikan Ryû", "Kukishinden Ryû, Shinden Fudô Ryû, Takagi Yôshin Ryû", "Tôgakure Ryû, Gyokko Ryû, Kukishinden Ryû"], correct_index: 0 },
         { category: "Kihon-Buch • Graduierungen", question: "Welche Prüfung ist die Besonderheit beim Übergang zum 5. Dan (Godan / Shidôshi)?", options: ["Der Sakki-Test (Ausweichen vor einem Schwertstreich von hinten in Seiza)", "Ein 100-Mann-Vollkontakt-Kampf", "Das Durchschlagen von 10 Eisblöcken", "Ein 50-Kilometer-Lauf"], correct_index: 0 },
@@ -1568,8 +1565,6 @@
         { category: "Kihon-Buch • Kaeshi Waza", question: "Welcher zentrale Leitsatz gilt im Umidanuki Dôjô für Gegentechniken (Kaeshi Waza)?", options: ["‚Gib Uke mehr als er will.‘", "‚Halte mit maximaler Muskelkraft dagegen.‘", "‚Bleib starr auf einem Fleck stehen.‘", "‚Schließe bei jedem Hebel die Augen.‘"], correct_index: 0 },
         { category: "Kihon-Buch • 5. Kyû", question: "Was wird beim ‚Sannin Dori‘ trainiert und welcher Satz von Nagato Sensei gilt dabei?", options: ["Verteidigung gegen mehrere Gegner – ‚Langsam ist flüssig. Flüssig ist schnell.‘", "Kampf im tiefen Wasser – ‚Schnelligkeit ist alles.‘", "Wettkampf nach Punkten – ‚Wer zuerst trifft, gewinnt.‘", "Meditation im Sitzen"], correct_index: 0 },
         { category: "Honbu Dôjô Leitlinie", question: "Wie lautet das 7. Prinzip der Bujinkan-Leitlinie von Soke Masaaki Hatsumi?", options: ["‚To study is the path to the immovable heart (Fudôshin).‘", "‚Der Stärkere besiegt den Schwächeren im Turnier.‘", "‚Techniken dürfen nur geheim aus Büchern gelernt werden.‘", "‚Kraft ist wichtiger als Präzision.‘"], correct_index: 0 },
-
-        // --- TEIL C: FRAGEN AUS DEM NINJUTSU CURRICULUM (GEDAN BIS 1. DAN) ---
         { category: "Curriculum • Kids (Gelb)", question: "Welche drei Fokus-Stufen begleiten die Kinder-Graduierungen Gedan, Chûdan und Jôdan?", options: ["Gedan: Sicherheit (Ten) ➔ Chûdan: Kihon I (Chi) ➔ Jôdan: Kihon II (Jin)", "Gedan: Schwert ➔ Chûdan: Speer ➔ Jôdan: Bogen", "Gedan: Feuer ➔ Chûdan: Wasser ➔ Jôdan: Luft", "Gedan: 1. Dan ➔ Chûdan: 5. Dan ➔ Jôdan: 10. Dan"], correct_index: 0 },
         { category: "Curriculum • 4. Kyû", question: "Welche Schulen und Waffen bilden den Schwerpunkt im Curriculum zum 4. Kyû?", options: ["Gyokko Ryû & Kotô Ryû – Tantô Jutsu / Wakizashi Jutsu", "Shinden Fudô Ryû – Yari & Naginata", "Takagi Yôshin Ryû – Rokushakubô", "Tôgakure Ryû – Kyûjutsu"], correct_index: 0 },
         { category: "Curriculum • 3. Kyû", question: "Welche Schule und Waffe stehen im Mittelpunkt des Curriculums zum 3. Kyû?", options: ["Kukishinden Ryû – Kenjutsu (Katana)", "Gyokko Ryû – Tantô Jutsu", "Gikan Ryû – Shuriken Jutsu", "Kumogakure Ryû – Kamayari"], correct_index: 0 },
@@ -1583,7 +1578,7 @@
     ];
 
     // =========================================================================
-    // INITIALIZATION & LOGIN (STRICTLY SERVER-ONLY)
+    // INITIALIZATION & SERVER LOGIN
     // =========================================================================
 
     function ShuffleQuizQuestionsPool()
@@ -1606,7 +1601,7 @@
         document.getElementById("input_first_name").value = _saved_name;
         document.getElementById("input_pin_code").value = saved_user_pin;
 
-        // Render Quiz, Tags, Dam & Empty Board safely before login
+        // Render Quiz, Tags, Dam & Empty Board cleanly before login
         RenderDamVisualStage(dojo_dam_stage);
         RenderMonthlyLeaderboards();
         RenderNafudakakeBoard();
@@ -1771,6 +1766,7 @@
         let _key = String(belt_color_key || "").toLowerCase();
         let _rank = String(rank_str_optional || "").toLowerCase();
 
+        // Check Kids ranks first so Jodan / Chudan / Gedan are never treated as Dan
         if (_key.indexOf("gelb") !== -1 || _rank.indexOf("jôdan") !== -1 || _rank.indexOf("jodan") !== -1 || _rank.indexOf("chûdan") !== -1 || _rank.indexOf("chudan") !== -1 || _rank.indexOf("gedan") !== -1)
         {
             if (_key.indexOf("jodan") !== -1 || _rank.indexOf("jôdan") !== -1 || _rank.indexOf("jodan") !== -1)
@@ -2133,7 +2129,7 @@
     }
 
     // =========================================================================
-    // COOPERATIVE DAM BUILDING & TRAINER PREVIEW
+    // COOPERATIVE DAM BUILDING & CUSTOM SPRITE LOADER
     // =========================================================================
 
     function ContributeTaidenToDam(amount_to_spend)
