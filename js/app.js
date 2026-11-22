@@ -429,7 +429,13 @@ async function PerformLiveSheetLogin()
 
         let _data = await _response.json();
 
-        if (_data.status !== "ok" || !_data.own_profile || !_data.session_token)
+        if (_data.status === "ok" && !_data.session_token)
+        {
+            ShowToastMessage("⚠️ Backend noch auf alter Version – bitte Code.gs in Apps Script als neue Version bereitstellen!");
+            return;
+        }
+
+        if (_data.status !== "ok" || !_data.own_profile)
         {
             ShowToastMessage("❌ " + (_data.message || "Login fehlgeschlagen"));
             return;
