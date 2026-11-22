@@ -125,6 +125,7 @@ function InitializeDojoApp()
     BindEventListeners();
 
     document.getElementById("input_api_url").value = google_script_api_url;
+    UpdateServerConfigDisclosureUI();
 
     RenderDamVisualStage(dojo_dam_stage);
     RenderMonthlyLeaderboards();
@@ -150,6 +151,12 @@ function BindEventListeners()
             _ev.preventDefault();
             PerformLiveSheetLogin();
         });
+    }
+
+    let _toggle_pin_btn = document.getElementById("btn_toggle_pin_visibility");
+    if (_toggle_pin_btn)
+    {
+        _toggle_pin_btn.addEventListener("click", TogglePinVisibility);
     }
 
     let _user_badge_btn = document.getElementById("btn_open_own_dashboard");
@@ -377,6 +384,48 @@ async function ResumeActiveDojoSession()
     }
 }
 
+function UpdateServerConfigDisclosureUI()
+{
+    let _details = document.getElementById("ui_server_config_details");
+    let _summary = document.getElementById("ui_server_config_summary");
+    if (!_details || !_summary) { return; }
+
+    let _has_url = (google_script_api_url.trim() !== "");
+    _details.open = !_has_url;
+    _summary.textContent = _has_url
+        ? "⚙️ Dôjô-Server verbunden (URL ändern)"
+        : "⚙️ Dôjô-Server-URL eingeben";
+}
+
+function TogglePinVisibility()
+{
+    let _pin_input = document.getElementById("input_pin_code");
+    let _toggle_btn = document.getElementById("btn_toggle_pin_visibility");
+    if (!_pin_input || !_toggle_btn) { return; }
+
+    let _show_pin = (_pin_input.type === "password");
+    _pin_input.type = _show_pin ? "text" : "password";
+    _toggle_btn.setAttribute("aria-pressed", _show_pin ? "true" : "false");
+    _toggle_btn.setAttribute("aria-label", _show_pin ? "PIN verbergen" : "PIN anzeigen");
+    _toggle_btn.textContent = _show_pin ? "🙈" : "👁️";
+}
+
+function TryStoreBrowserCredentials(login_form_el)
+{
+    try
+    {
+        if (login_form_el &&
+            typeof window.PasswordCredential !== "undefined" &&
+            navigator.credentials &&
+            typeof navigator.credentials.store === "function")
+        {
+            let _cred = new window.PasswordCredential(login_form_el);
+            navigator.credentials.store(_cred).catch(function() {});
+        }
+    }
+    catch (_e) {}
+}
+
 async function PerformLiveSheetLogin()
 {
     if (is_logging_in) { return; }
@@ -385,9 +434,18 @@ async function PerformLiveSheetLogin()
     let _name = document.getElementById("input_first_name").value.trim();
     let _pin = document.getElementById("input_pin_code").value.trim();
 
-    if (_url === "" || _name === "" || _pin === "")
+    if (_url === "")
     {
-        ShowToastMessage("⚠️ Bitte Web-App-URL, Vorname und Dôjô-PIN eingeben!");
+        let _details = document.getElementById("ui_server_config_details");
+        if (_details) { _details.open = true; }
+        document.getElementById("input_api_url").focus();
+        ShowToastMessage("⚠️ Bitte zuerst die Web-App-URL eingeben!");
+        return;
+    }
+
+    if (_name === "" || _pin === "")
+    {
+        ShowToastMessage("⚠️ Bitte Vorname und Dôjô-PIN eingeben!");
         return;
     }
 
@@ -444,9 +502,22 @@ async function PerformLiveSheetLogin()
         // Persist ONLY the non-sensitive API URL; never store the PIN in browser storage
         google_script_api_url = _url;
         localStorage.setItem("umidanuki_api_url", _url);
-        document.getElementById("input_pin_code").value = "";
+        UpdateServerConfigDisclosureUI();
+
+        // Offer OS Password Manager / FaceID / Fingerprint save before clearing the DOM field
+        let _login_form = document.getElementById("form_dojo_login");
+        TryStoreBrowserCredentials(_login_form);
 
         ApplyAuthenticatedBootstrapData(_data, true);
+
+        setTimeout(function()
+        {
+            let _pin_input = document.getElementById("input_pin_code");
+            if (_pin_input && is_live_sheet_mode)
+            {
+                _pin_input.value = "";
+            }
+        }, 800);
     }
     catch (_err)
     {
@@ -488,7 +559,19 @@ function ResetLocalSessionUi()
     sessionStorage.removeItem("umidanuki_session_token");
     localStorage.removeItem("umidanuki_user_pin");
     localStorage.removeItem("umidanuki_user_name");
-    document.getElementById("input_pin_code").value = "";
+    let _pin_input = document.getElementById("input_pin_code");
+    if (_pin_input)
+    {
+        _pin_input.value = "";
+        _pin_input.type = "password";
+    }
+    let _toggle_btn = document.getElementById("btn_toggle_pin_visibility");
+    if (_toggle_btn)
+    {
+        _toggle_btn.setAttribute("aria-pressed", "false");
+        _toggle_btn.setAttribute("aria-label", "PIN anzeigen");
+        _toggle_btn.textContent = "👁️";
+    }
 
     ApplyTrainerPermissions(false);
     document.getElementById("ui_qr_result_box").style.display = "none";
@@ -508,6 +591,15 @@ function LogoutDojoUser()
     let _url = google_script_api_url;
 
     ResetLocalSessionUi();
+
+    try
+    {
+        if (navigator.credentials && typeof navigator.credentials.preventSilentAccess === "function")
+        {
+            navigator.credentials.preventSilentAccess().catch(function() {});
+        }
+    }
+    catch (_e) {}
 
     if (_url && _token_to_revoke)
     {

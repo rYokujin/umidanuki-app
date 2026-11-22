@@ -25,31 +25,44 @@
          LOGIN OVERLAY (LANDING PAGE - SERVER LOGIN ONLY)
          ================================================================= -->
     <div id="ui_login_screen" class="login-screen">
-        <form id="form_dojo_login" class="login-card" novalidate>
+        <div class="login-card">
             <div class="login-logo-box">
                 <img src="sprites/spr_dojo_logo.png" alt="Umidanuki Logo" class="logo-img">
             </div>
             <h2 class="login-title">Bujinkan Umidanuki Dôjô</h2>
 
-            <div class="input-group">
-                <label for="input_api_url">WEB-APP-URL</label>
-                <input type="url" id="input_api_url" class="text-input" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="url" required>
-            </div>
+            <!-- Kept outside the credential form so FaceID / Password Managers pair ONLY username + PIN -->
+            <details id="ui_server_config_details" class="server-config-details" open>
+                <summary id="ui_server_config_summary" class="server-config-summary">⚙️ Dôjô-Server-URL eingeben</summary>
+                <div class="input-group server-config-input-group">
+                    <label for="input_api_url">WEB-APP-URL</label>
+                    <input type="url" id="input_api_url" class="text-input" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" spellcheck="false">
+                </div>
+            </details>
 
-            <div class="input-group">
-                <label for="input_first_name">DEIN VORNAME</label>
-                <input type="text" id="input_first_name" class="text-input" placeholder="Dein Vorname" autocomplete="given-name" required>
-            </div>
+            <form id="form_dojo_login" method="post" autocomplete="on" novalidate>
+                <div class="input-group">
+                    <label for="input_first_name">DEIN VORNAME</label>
+                    <input type="text" id="input_first_name" name="username" class="text-input" placeholder="Dein Vorname" autocomplete="username" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="next" required>
+                </div>
 
-            <div class="input-group">
-                <label for="input_pin_code">DEINE DÔJÔ-PIN</label>
-                <input type="password" id="input_pin_code" class="text-input" placeholder="••••••" maxlength="12" inputmode="numeric" autocomplete="one-time-code" required>
-            </div>
+                <div class="input-group">
+                    <label for="input_pin_code">DEINE DÔJÔ-PIN</label>
+                    <div class="password-field-wrap">
+                        <input type="password" id="input_pin_code" name="password" class="text-input password-input" placeholder="••••••" maxlength="12" inputmode="numeric" autocomplete="current-password" enterkeyhint="done" required>
+                        <button type="button" id="btn_toggle_pin_visibility" class="pin-toggle-btn" aria-label="PIN anzeigen" aria-pressed="false">👁️</button>
+                    </div>
+                </div>
 
-            <button type="submit" class="btn btn-primary login-submit-btn" id="btn_login_submit">
-                🥋 Jetzt im Dôjô anmelden
-            </button>
-        </form>
+                <button type="submit" class="btn btn-primary login-submit-btn" id="btn_login_submit">
+                    🥋 Jetzt im Dôjô anmelden
+                </button>
+            </form>
+
+            <p class="login-biometric-hint">
+                🔐 Tipp: Speichere den Zugang im Passwortmanager / Schlüsselbund deines Handys für schnellen Login per FaceID oder Fingerabdruck.
+            </p>
+        </div>
     </div>
 
     <!-- Header -->
