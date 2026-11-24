@@ -14,6 +14,8 @@ let is_live_sheet_mode = false;
 let is_logging_in = false;
 let is_redeeming_token = false;
 let is_generating_qr = false;
+let is_publishing_announcement = false;
+let is_enabling_push = false;
 let is_action_in_flight = false;
 
 let dojo_dam_stage = 1;
@@ -23,6 +25,27 @@ let is_trainer_dam_preview_active = false;
 let active_member_id = "";
 let dojo_members_data = {};
 let last_month_top3_list = [];
+let dojo_announcements_list = [];
+let co_trainers_list = [];
+let is_backend_co_trainer_supported = true;
+let current_magic_onboarding_url = "";
+let firebase_messaging_instance = null;
+
+// =============================================================================
+// FIREBASE WEB PUSH CONFIG (SPARK PLAN - PUBLIC CLIENT IDENTIFIERS ONLY)
+// =============================================================================
+
+const firebase_web_config = {
+    apiKey: "AIzaSyAheAyR5fPJ78niutzhPcOa1iCHPiHaEAM",
+    authDomain: "umidanuki-app.firebaseapp.com",
+    projectId: "umidanuki-app",
+    storageBucket: "umidanuki-app.firebasestorage.app",
+    messagingSenderId: "1092621337066",
+    appId: "1:1092621337066:web:5e668f204fa65c4cc2b293"
+};
+
+// Public Web Push certificate key pair (starts with "B...", 87 chars)
+const firebase_vapid_key = "BBfC23fgiz-LjQjQirqIARsSNhAK_VH_zt8XrwyC9AT4RGTWkKgZp7QmHjjnMiWgA4zRPQkuLCv3GNKiSx9Gel4";
 
 let selected_training_unit = "Senpai-Training";
 let selected_session_tags = ["Kihon Happô", "Gyokko Ryû", "Hanbô"];
@@ -124,9 +147,13 @@ function InitializeDojoApp()
     BuildCompleteQuizPool();
     BindEventListeners();
 
+    let _applied_magic_link = ProcessMagicApiUrlParam();
+
     document.getElementById("input_api_url").value = google_script_api_url;
     UpdateServerConfigDisclosureUI();
 
+    RenderMakimonoScroll(false);
+    UpdatePushButtonVisibility();
     RenderDamVisualStage(dojo_dam_stage);
     RenderMonthlyLeaderboards();
     RenderNafudakakeBoard();
@@ -135,9 +162,54 @@ function InitializeDojoApp()
     RenderKudenQuiz();
     InitializeShurikenCanvas();
 
-    if (google_script_api_url !== "" && active_session_token !== "")
+    if (!_applied_magic_link && google_script_api_url !== "" && active_session_token !== "")
     {
         ResumeActiveDojoSession();
+    }
+    else if (_applied_magic_link)
+    {
+        let _name_input = document.getElementById("input_first_name");
+        if (_name_input) { _name_input.focus(); }
+    }
+}
+
+function IsTrustedAppsScriptUrl(url_str)
+{
+    return /^https:\/\/script\.google\.com\/(a\/macros\/[^/]+|macros)\/s\/[A-Za-z0-9_-]+\/exec$/i.test(String(url_str || "").trim());
+}
+
+function ProcessMagicApiUrlParam()
+{
+    try
+    {
+        let _params = new URLSearchParams(window.location.search);
+        let _raw_api = (_params.get("api") || "").trim();
+        if (_raw_api === "") { return false; }
+
+        // Clean ?api=... from browser address bar & history immediately
+        if (window.history && typeof window.history.replaceState === "function")
+        {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        if (!IsTrustedAppsScriptUrl(_raw_api))
+        {
+            ShowToastMessage("⚠️ Ungültiger Magic-Link (nur offizielle Apps-Script-URLs erlaubt).");
+            return false;
+        }
+
+        google_script_api_url = _raw_api;
+        localStorage.setItem("umidanuki_api_url", _raw_api);
+        // Clear any stale session from a different server
+        active_session_token = "";
+        sessionStorage.removeItem("umidanuki_session_token");
+
+        ShowToastMessage("✨ Dôjô-Server automatisch eingerichtet! Gib jetzt Vorname & PIN ein.");
+        return true;
+    }
+    catch (_err)
+    {
+        return false;
     }
 }
 
@@ -245,6 +317,48 @@ function BindEventListeners()
         _btn_generate_qr.addEventListener("click", GenerateTaggedQrCode);
     }
 
+    // Makimono scroll & push opt-in
+    let _btn_makimono_toggle = document.getElementById("btn_makimono_toggle");
+    if (_btn_makimono_toggle)
+    {
+        _btn_makimono_toggle.addEventListener("click", ToggleMakimonoScroll);
+    }
+
+    let _btn_makimono_read = document.getElementById("btn_makimono_mark_read");
+    if (_btn_makimono_read)
+    {
+        _btn_makimono_read.addEventListener("click", MarkMakimonoAsReadAndRoll);
+    }
+
+    let _btn_enable_push = document.getElementById("btn_enable_push");
+    if (_btn_enable_push)
+    {
+        _btn_enable_push.addEventListener("click", EnableDojoPushNotifications);
+    }
+
+    // Shidoshi announcement composer & Magic Onboarding QR
+    let _announce_form = document.getElementById("form_create_announcement");
+    if (_announce_form)
+    {
+        _announce_form.addEventListener("submit", function(_ev)
+        {
+            _ev.preventDefault();
+            PublishDojoAnnouncement();
+        });
+    }
+
+    let _btn_magic_qr = document.getElementById("btn_generate_magic_qr");
+    if (_btn_magic_qr)
+    {
+        _btn_magic_qr.addEventListener("click", GenerateMagicOnboardingQrCode);
+    }
+
+    let _btn_copy_magic = document.getElementById("btn_copy_magic_link");
+    if (_btn_copy_magic)
+    {
+        _btn_copy_magic.addEventListener("click", CopyMagicOnboardingLink);
+    }
+
     let _modal_dialog = document.getElementById("ui_member_modal");
     if (_modal_dialog)
     {
@@ -263,8 +377,8 @@ function BindEventListeners()
         _btn_close_modal.addEventListener("click", CloseMemberDashboard);
     }
 
-    let _nav_items = document.querySelectorAll(".nav-item");
-    _nav_items.forEach(function(_nav_btn)
+    let _nav_items = Array.from(document.querySelectorAll(".nav-item"));
+    _nav_items.forEach(function(_nav_btn, _idx)
     {
         _nav_btn.addEventListener("click", function()
         {
@@ -274,7 +388,104 @@ function BindEventListeners()
                 SwitchTab(_target_id, _nav_btn);
             }
         });
+
+        // Standard WAI-ARIA tablist keyboard navigation (ArrowLeft, ArrowRight, Home, End)
+        _nav_btn.addEventListener("keydown", function(_ev)
+        {
+            let _next_idx = -1;
+            if (_ev.key === "ArrowRight") { _next_idx = (_idx + 1) % _nav_items.length; }
+            else if (_ev.key === "ArrowLeft") { _next_idx = (_idx - 1 + _nav_items.length) % _nav_items.length; }
+            else if (_ev.key === "Home") { _next_idx = 0; }
+            else if (_ev.key === "End") { _next_idx = _nav_items.length - 1; }
+
+            if (_next_idx !== -1)
+            {
+                _ev.preventDefault();
+                let _next_btn = _nav_items[_next_idx];
+                _next_btn.focus();
+                let _next_target = _next_btn.dataset.targetView;
+                if (_next_target)
+                {
+                    SwitchTab(_next_target, _next_btn);
+                }
+            }
+        });
     });
+
+    BindPullToRefreshGuard();
+}
+
+function HasScrolledVerticalAncestor(target_el)
+{
+    let _el = target_el;
+    while (_el && _el !== document.body && _el !== document.documentElement)
+    {
+        if (_el.scrollHeight > _el.clientHeight + 1 && _el.scrollTop > 0)
+        {
+            let _style = window.getComputedStyle(_el);
+            if (_style && (_style.overflowY === "auto" || _style.overflowY === "scroll"))
+            {
+                return true;
+            }
+        }
+        _el = _el.parentElement;
+    }
+    return false;
+}
+
+function BindPullToRefreshGuard()
+{
+    if (typeof window === "undefined" || !("ontouchstart" in window)) { return; }
+
+    let _start_x = 0;
+    let _start_y = 0;
+    let _pull_guard_active = false;
+
+    document.addEventListener("touchstart", function(_ev)
+    {
+        if (!_ev.touches || _ev.touches.length !== 1)
+        {
+            _pull_guard_active = false;
+            return;
+        }
+
+        let _target = _ev.target;
+        if (_target && (_target.tagName === "CANVAS" || (_target.tagName === "INPUT" && _target.type === "range")))
+        {
+            _pull_guard_active = false;
+            return;
+        }
+
+        let _scroll_top = window.scrollY || document.documentElement.scrollTop || 0;
+        _start_x = _ev.touches[0].clientX;
+        _start_y = _ev.touches[0].clientY;
+        _pull_guard_active = (_scroll_top <= 0 && !HasScrolledVerticalAncestor(_target));
+    }, { passive: true });
+
+    document.addEventListener("touchmove", function(_ev)
+    {
+        if (!_pull_guard_active || !_ev.touches || _ev.touches.length !== 1) { return; }
+
+        let _dx = _ev.touches[0].clientX - _start_x;
+        let _dy = _ev.touches[0].clientY - _start_y;
+        let _scroll_top = window.scrollY || document.documentElement.scrollTop || 0;
+
+        if (_dy > 0 && Math.abs(_dy) > Math.abs(_dx) && _scroll_top <= 0 && !HasScrolledVerticalAncestor(_ev.target))
+        {
+            if (_ev.cancelable)
+            {
+                _ev.preventDefault();
+            }
+        }
+        else if (_dy < 0)
+        {
+            _pull_guard_active = false;
+        }
+    }, { passive: false });
+
+    let _reset_pull_guard = function() { _pull_guard_active = false; };
+    document.addEventListener("touchend", _reset_pull_guard, { passive: true });
+    document.addEventListener("touchcancel", _reset_pull_guard, { passive: true });
 }
 
 function ApplyAuthenticatedBootstrapData(server_data, show_welcome_toast)
@@ -318,15 +529,23 @@ function ApplyAuthenticatedBootstrapData(server_data, show_welcome_toast)
         last_month_top3_list = server_data.dojo_dam.last_month_top3 || [];
     }
 
+    dojo_announcements_list = Array.isArray(server_data.announcements) ? server_data.announcements : [];
+    is_backend_co_trainer_supported = Array.isArray(server_data.co_trainers);
+    co_trainers_list = is_backend_co_trainer_supported ? server_data.co_trainers : [];
+
     ApplyTrainerPermissions(Boolean(_own.is_trainer));
     document.getElementById("ui_login_screen").classList.add("hidden");
 
     UpdateTopHeaderUI();
+    RenderMakimonoScroll(true);
+    UpdatePushButtonVisibility();
+    InitializeFirebaseForegroundHandler();
     RenderDamVisualStage(dojo_dam_stage);
     RenderMonthlyLeaderboards();
     RenderNafudakakeBoard();
     UpdateCosmeticShopUI();
     RenderTrainerTagCloud();
+    RenderCoTrainerCheckboxes();
     RenderKudenQuiz();
 
     if (show_welcome_toast)
@@ -373,8 +592,8 @@ async function ResumeActiveDojoSession()
     }
     catch (_err)
     {
-        active_session_token = "";
-        sessionStorage.removeItem("umidanuki_session_token");
+        // Keep session_token on transient network glitches so users are not unexpectedly logged out
+        ShowToastMessage("⚠️ Verbindung kurz unterbrochen – bitte erneut versuchen.");
     }
     finally
     {
@@ -533,8 +752,25 @@ async function PerformLiveSheetLogin()
 
 function ApplyTrainerPermissions(is_trainer_flag)
 {
-    document.getElementById("ui_shidoshi_generator_card").style.display = is_trainer_flag ? "block" : "none";
-    document.getElementById("ui_trainer_dam_preview_box").style.display = is_trainer_flag ? "block" : "none";
+    let _is_trainer = Boolean(is_trainer_flag);
+    let _member_checkin_card = document.getElementById("ui_member_checkin_card");
+    if (_member_checkin_card)
+    {
+        _member_checkin_card.style.display = _is_trainer ? "none" : "block";
+    }
+    if (_is_trainer)
+    {
+        StopCameraQrScanner();
+    }
+
+    document.getElementById("ui_shidoshi_generator_card").style.display = _is_trainer ? "block" : "none";
+    document.getElementById("ui_trainer_dam_preview_box").style.display = _is_trainer ? "block" : "none";
+
+    let _nav_label = document.getElementById("ui_nav_checkin_label");
+    if (_nav_label)
+    {
+        _nav_label.textContent = _is_trainer ? "Shidôshi" : "Check-In";
+    }
 }
 
 function ResetLocalSessionUi()
@@ -555,6 +791,12 @@ function ResetLocalSessionUi()
     active_session_token = "";
     dojo_members_data = {};
     last_month_top3_list = [];
+    dojo_announcements_list = [];
+    co_trainers_list = [];
+    is_backend_co_trainer_supported = true;
+    current_magic_onboarding_url = "";
+    let _co_box = document.getElementById("ui_co_trainer_box");
+    if (_co_box) { _co_box.innerHTML = ""; }
 
     sessionStorage.removeItem("umidanuki_session_token");
     localStorage.removeItem("umidanuki_user_pin");
@@ -573,8 +815,11 @@ function ResetLocalSessionUi()
     }
 
     ApplyTrainerPermissions(false);
+    SetMakimonoOpenState(false);
     document.getElementById("ui_qr_result_box").style.display = "none";
     document.getElementById("ui_real_qr_box").innerHTML = "";
+    document.getElementById("ui_magic_qr_result_box").style.display = "none";
+    document.getElementById("ui_magic_qr_box").innerHTML = "";
     document.getElementById("ui_header_name").textContent = "Mein Nafuda";
     document.getElementById("ui_header_rank").textContent = "Bitte anmelden";
     document.getElementById("ui_taiden_xp").textContent = "0";
@@ -776,6 +1021,11 @@ function SwitchTab(target_view_id, nav_btn_element)
     {
         nav_btn_element.classList.add("active");
         nav_btn_element.setAttribute("aria-selected", "true");
+        let _tab_text = String(nav_btn_element.textContent || "").trim();
+        if (_tab_text !== "")
+        {
+            document.title = _tab_text + " | Bujinkan Umidanuki Dôjô";
+        }
     }
 }
 
@@ -1750,21 +2000,53 @@ function QrScorePenalty(matrix, size)
     return _penalty;
 }
 
-function EncodeQrVersion2Matrix(text_str)
+function QrComputeVersionBits(version_num)
 {
-    // Version 2-M: 25x25, 28 data codewords (max 26 UTF-8 bytes), 16 EC codewords, 7 remainder bits
-    let _size = 25;
-    let _data_cap = 28;
-    let _ec_count = 16;
-    let _ec_format_bits = 0; // Level M = 00
-
-    let _utf8_bytes = Array.from(new TextEncoder().encode(String(text_str || "")));
-    if (_utf8_bytes.length > 26)
+    let _rem = version_num & 0x3F;
+    for (let _i = 0; _i < 12; _i++)
     {
-        _utf8_bytes = _utf8_bytes.slice(0, 26);
+        _rem = (_rem << 1) ^ (((_rem >> 11) & 1) * 0x1F25);
+    }
+    return ((version_num & 0x3F) << 12) | _rem;
+}
+
+function QrApplyVersionInfo(matrix, size, version_num)
+{
+    if (version_num < 7) { return; }
+    let _vbits = QrComputeVersionBits(version_num);
+    for (let _i = 0; _i < 18; _i++)
+    {
+        let _is_dark = ((_vbits >> _i) & 1) === 1;
+        let _a = Math.floor(_i / 3);
+        let _b = size - 11 + (_i % 3);
+        matrix[_b][_a] = _is_dark;
+        matrix[_a][_b] = _is_dark;
+    }
+}
+
+function EncodeQrMatrix(text_str)
+{
+    let _utf8_bytes = Array.from(new TextEncoder().encode(String(text_str || "")));
+
+    // Auto-select Version 2-M (25x25, <=26 B) for check-in tokens, or Version 9-L (53x53, <=230 B) for Magic-Link URLs
+    let _use_v9 = (_utf8_bytes.length > 26);
+    let _version = _use_v9 ? 9 : 2;
+    let _size = _use_v9 ? 53 : 25;
+    let _total_data_cap = _use_v9 ? 232 : 28;
+    let _num_blocks = _use_v9 ? 2 : 1;
+    let _block_data_len = _use_v9 ? 116 : 28;
+    let _ec_per_block = _use_v9 ? 30 : 16;
+    let _ec_format_bits = _use_v9 ? 1 : 0; // L = 01 (1), M = 00 (0)
+    let _remainder_bits = _use_v9 ? 0 : 7;
+    let _align_centers = _use_v9 ? [6, 26, 46] : [6, 18];
+
+    let _max_payload_bytes = _total_data_cap - 2;
+    if (_utf8_bytes.length > _max_payload_bytes)
+    {
+        _utf8_bytes = _utf8_bytes.slice(0, _max_payload_bytes);
     }
 
-    // Build bit stream: Mode (0100 = Byte) + Length (8 bits) + Payload + Terminator
+    // Build bit stream: Mode (0100 = Byte) + Length (8 bits for Versions 1-9) + Payload + Terminator
     let _bit_stream = [];
     let _push_bits = function(_val, _len)
     {
@@ -1781,7 +2063,7 @@ function EncodeQrVersion2Matrix(text_str)
         _push_bits(_utf8_bytes[_i], 8);
     }
 
-    let _max_data_bits = _data_cap * 8;
+    let _max_data_bits = _total_data_cap * 8;
     let _term_len = Math.min(4, _max_data_bits - _bit_stream.length);
     _push_bits(0, _term_len);
 
@@ -1802,14 +2084,37 @@ function EncodeQrVersion2Matrix(text_str)
     }
 
     let _pad_toggle = 0;
-    while (_data_codewords.length < _data_cap)
+    while (_data_codewords.length < _total_data_cap)
     {
         _data_codewords.push(_pad_toggle === 0 ? 0xEC : 0x11);
         _pad_toggle = 1 - _pad_toggle;
     }
 
-    let _ec_codewords = QrComputeReedSolomonEc(_data_codewords, _ec_count);
-    let _all_codewords = _data_codewords.concat(_ec_codewords);
+    // Split into RS blocks, compute EC per block, and interleave codewords per ISO/IEC 18004
+    let _data_blocks = [];
+    let _ec_blocks = [];
+    for (let _blk = 0; _blk < _num_blocks; _blk++)
+    {
+        let _slice = _data_codewords.slice(_blk * _block_data_len, (_blk + 1) * _block_data_len);
+        _data_blocks.push(_slice);
+        _ec_blocks.push(QrComputeReedSolomonEc(_slice, _ec_per_block));
+    }
+
+    let _all_codewords = [];
+    for (let _i = 0; _i < _block_data_len; _i++)
+    {
+        for (let _blk = 0; _blk < _num_blocks; _blk++)
+        {
+            _all_codewords.push(_data_blocks[_blk][_i]);
+        }
+    }
+    for (let _i = 0; _i < _ec_per_block; _i++)
+    {
+        for (let _blk = 0; _blk < _num_blocks; _blk++)
+        {
+            _all_codewords.push(_ec_blocks[_blk][_i]);
+        }
+    }
 
     let _final_bits = [];
     for (let _i = 0; _i < _all_codewords.length; _i++)
@@ -1819,8 +2124,7 @@ function EncodeQrVersion2Matrix(text_str)
             _final_bits.push((_all_codewords[_i] >> _b) & 1);
         }
     }
-    // 7 remainder bits for Version 2
-    for (let _r = 0; _r < 7; _r++)
+    for (let _r = 0; _r < _remainder_bits; _r++)
     {
         _final_bits.push(0);
     }
@@ -1862,24 +2166,39 @@ function EncodeQrVersion2Matrix(text_str)
     _draw_finder(0, _size - 7);
     _draw_finder(_size - 7, 0);
 
-    // Alignment pattern centered at (18, 18) for Version 2
-    for (let _dr = -2; _dr <= 2; _dr++)
+    // Alignment patterns (skipping corners occupied by the 3 finder patterns)
+    for (let _ai = 0; _ai < _align_centers.length; _ai++)
     {
-        for (let _dc = -2; _dc <= 2; _dc++)
+        for (let _aj = 0; _aj < _align_centers.length; _aj++)
         {
-            let _dist = Math.max(Math.abs(_dr), Math.abs(_dc));
-            _set_func(18 + _dr, 18 + _dc, _dist !== 1);
+            let _cr = _align_centers[_ai];
+            let _cc = _align_centers[_aj];
+            let _overlaps_finder = (
+                (_cr === 6 && _cc === 6) ||
+                (_cr === 6 && _cc === _size - 7) ||
+                (_cr === _size - 7 && _cc === 6)
+            );
+            if (_overlaps_finder) { continue; }
+
+            for (let _dr = -2; _dr <= 2; _dr++)
+            {
+                for (let _dc = -2; _dc <= 2; _dc++)
+                {
+                    let _dist = Math.max(Math.abs(_dr), Math.abs(_dc));
+                    _set_func(_cr + _dr, _cc + _dc, _dist !== 1);
+                }
+            }
         }
     }
 
     // Timing patterns
     for (let _i = 8; _i < _size - 8; _i++)
     {
-        _set_func(6, _i, (_i % 2) === 0);
-        _set_func(_i, 6, (_i % 2) === 0);
+        if (!_is_func[6][_i]) { _set_func(6, _i, (_i % 2) === 0); }
+        if (!_is_func[_i][6]) { _set_func(_i, 6, (_i % 2) === 0); }
     }
 
-    // Reserve format information areas and fixed dark module (17, 8)
+    // Reserve format information areas and fixed dark module (4 * version + 9, 8)
     for (let _i = 0; _i <= 8; _i++)
     {
         if (!_is_func[8][_i]) { _set_func(8, _i, false); }
@@ -1890,7 +2209,20 @@ function EncodeQrVersion2Matrix(text_str)
         _set_func(8, _i, false);
         _set_func(_i, 8, false);
     }
-    _set_func(17, 8, true);
+    _set_func(4 * _version + 9, 8, true);
+
+    // Reserve & place 18-bit Version Information for Version >= 7
+    if (_version >= 7)
+    {
+        for (let _i = 0; _i < 18; _i++)
+        {
+            let _a = Math.floor(_i / 3);
+            let _b = _size - 11 + (_i % 3);
+            _set_func(_b, _a, false);
+            _set_func(_a, _b, false);
+        }
+        QrApplyVersionInfo(_base_matrix, _size, _version);
+    }
 
     // Place data + EC bits in standard right-to-left zig-zag order
     let _bit_idx = 0;
@@ -1947,9 +2279,14 @@ function EncodeQrVersion2Matrix(text_str)
     return _best_matrix;
 }
 
+function EncodeQrVersion2Matrix(text_str)
+{
+    return EncodeQrMatrix(text_str);
+}
+
 function BuildLocalQrSvgHtml(text_str)
 {
-    let _matrix = EncodeQrVersion2Matrix(text_str);
+    let _matrix = EncodeQrMatrix(text_str);
     let _size = _matrix.length;
     let _quiet = 4;
     let _total = _size + _quiet * 2;
@@ -2034,12 +2371,65 @@ function RenderTrainerTagCloud()
     });
 }
 
+function RenderCoTrainerCheckboxes()
+{
+    let _box = document.getElementById("ui_co_trainer_box");
+    if (!_box) { return; }
+    _box.innerHTML = "";
+
+    let _own = active_member_id ? dojo_members_data[active_member_id] : null;
+    if (_own && _own.is_trainer && !is_backend_co_trainer_supported)
+    {
+        let _hint = document.createElement("div");
+        _hint.className = "co-trainer-backend-hint";
+        _hint.textContent = "⚠️ Backend (Code.gs) läuft noch auf einer älteren Version: Bitte Code.gs in Google Apps Script als „Neue Version“ bereitstellen, damit Auto-Verbuchung & Co-Trainer-Mitbuchung aktiv sind.";
+        _box.appendChild(_hint);
+        return;
+    }
+
+    if (!Array.isArray(co_trainers_list) || co_trainers_list.length === 0)
+    {
+        return;
+    }
+
+    co_trainers_list.forEach(function(_ct, _idx)
+    {
+        if (!_ct || !_ct.id || !_ct.name) { return; }
+
+        let _cb_id = "input_co_trainer_" + _idx;
+        let _label = document.createElement("label");
+        _label.className = "urgent-checkbox-row co-trainer-checkbox-row";
+        _label.setAttribute("for", _cb_id);
+
+        let _input = document.createElement("input");
+        _input.type = "checkbox";
+        _input.id = _cb_id;
+        _input.className = "urgent-checkbox co-trainer-checkbox";
+        _input.dataset.coTrainerId = String(_ct.id);
+
+        let _span = document.createElement("span");
+        _span.textContent = "Training für " + String(_ct.name) + " mitbuchen";
+
+        _label.appendChild(_input);
+        _label.appendChild(_span);
+        _box.appendChild(_label);
+    });
+}
+
 function SelectTrainingUnit(unit_name, clicked_btn)
 {
     selected_training_unit = unit_name;
     let _all_btns = document.querySelectorAll(".unit-btn");
-    _all_btns.forEach(function(_b) { _b.classList.remove("active-unit"); });
-    if (clicked_btn) { clicked_btn.classList.add("active-unit"); }
+    _all_btns.forEach(function(_b)
+    {
+        _b.classList.remove("active-unit");
+        _b.setAttribute("aria-pressed", "false");
+    });
+    if (clicked_btn)
+    {
+        clicked_btn.classList.add("active-unit");
+        clicked_btn.setAttribute("aria-pressed", "true");
+    }
     ShowToastMessage("🥋 Einheit gewählt: " + unit_name);
 }
 
@@ -2059,9 +2449,20 @@ async function GenerateTaggedQrCode()
 
     try
     {
+        let _selected_co_trainer_ids = [];
+        let _co_checkboxes = document.querySelectorAll("#ui_co_trainer_box .co-trainer-checkbox:checked");
+        _co_checkboxes.forEach(function(_cb)
+        {
+            if (_cb.dataset && _cb.dataset.coTrainerId)
+            {
+                _selected_co_trainer_ids.push(_cb.dataset.coTrainerId);
+            }
+        });
+
         let _data = await SendAuthenticatedAction("generate_shidoshi_qr", {
             unit_name: selected_training_unit,
-            tags: selected_session_tags
+            tags: selected_session_tags,
+            co_trainer_ids: _selected_co_trainer_ids
         });
 
         if (_data && _data.status === "ok" && _data.qr_token)
@@ -2071,9 +2472,43 @@ async function GenerateTaggedQrCode()
             document.getElementById("ui_qr_tags_label").textContent = "Inhalte: " + selected_session_tags.join(", ");
             document.getElementById("ui_qr_code_pin").textContent = _generated_token;
             document.getElementById("ui_real_qr_box").innerHTML = BuildLocalQrSvgHtml(_generated_token);
-            document.getElementById("ui_qr_result_box").style.display = "block";
+            let _qr_box = document.getElementById("ui_qr_result_box");
+            _qr_box.style.display = "block";
+            let _prefers_reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            _qr_box.scrollIntoView({ block: "nearest", behavior: _prefers_reduced ? "auto" : "smooth" });
 
-            ShowToastMessage("🔐 QR-Code (" + selected_training_unit + ") lokal erzeugt!");
+            if (_data.trainer_profile && active_member_id && dojo_members_data[active_member_id])
+            {
+                let _trainer = dojo_members_data[active_member_id];
+                if (typeof _data.trainer_profile.taiden_xp === "number") { _trainer.taiden_xp = _data.trainer_profile.taiden_xp; }
+                if (typeof _data.trainer_profile.trainings === "number") { _trainer.trainings = _data.trainer_profile.trainings; }
+                if (typeof _data.trainer_profile.streak_weeks === "number") { _trainer.streak_weeks = _data.trainer_profile.streak_weeks; }
+                if (_data.trainer_profile.stats) { _trainer.stats = _data.trainer_profile.stats; }
+                if (Array.isArray(_data.trainer_profile.logs)) { _trainer.logs = _data.trainer_profile.logs; }
+                UpdateTopHeaderUI();
+            }
+
+            let _co_booked = Array.isArray(_data.co_trainers_registered) ? _data.co_trainers_registered : [];
+            if (_data.trainer_auto_registered === true && _co_booked.length > 0)
+            {
+                ShowToastMessage("🔐 QR-Code erzeugt & Training (+10 Taiden XP) für dich und " + _co_booked.join(", ") + " verbucht!");
+            }
+            else if (_data.trainer_auto_registered === true)
+            {
+                ShowToastMessage("🔐 QR-Code erzeugt & Training (+10 Taiden XP) automatisch für dich verbucht!");
+            }
+            else if (_data.trainer_auto_registered === false && _co_booked.length > 0)
+            {
+                ShowToastMessage("🔐 Nachzügler-QR erzeugt & Training (+10 Taiden XP) für " + _co_booked.join(", ") + " mitgebucht!");
+            }
+            else if (_data.trainer_auto_registered === false)
+            {
+                ShowToastMessage("🔐 Nachzügler-QR-Code erzeugt (" + selected_training_unit + " heute bereits verbucht).");
+            }
+            else
+            {
+                ShowToastMessage("⚠️ QR-Code erzeugt, aber Code.gs in Apps Script ist noch auf alter Version – bitte als Neue Version bereitstellen!");
+            }
         }
     }
     finally
@@ -2218,6 +2653,446 @@ async function SubmitTrainingCheckInCode()
     {
         is_redeeming_token = false;
         _redeem_btn.disabled = false;
+    }
+}
+
+// =============================================================================
+// MAKIMONO SCROLL (ANNOUNCEMENTS), SHIDOSHI COMPOSER, MAGIC QR & FCM PUSH
+// =============================================================================
+
+function GetReadAnnouncementIds()
+{
+    try
+    {
+        let _raw = localStorage.getItem("umidanuki_read_announcements");
+        let _parsed = _raw ? JSON.parse(_raw) : [];
+        return Array.isArray(_parsed) ? _parsed : [];
+    }
+    catch (_e)
+    {
+        return [];
+    }
+}
+
+function SaveReadAnnouncementIds(id_list)
+{
+    let _dedup = [];
+    for (let _i = 0; _i < id_list.length; _i++)
+    {
+        let _id = String(id_list[_i] || "").trim();
+        if (_id !== "" && _dedup.indexOf(_id) === -1)
+        {
+            _dedup.push(_id);
+        }
+    }
+    if (_dedup.length > 100)
+    {
+        _dedup = _dedup.slice(_dedup.length - 100);
+    }
+    localStorage.setItem("umidanuki_read_announcements", JSON.stringify(_dedup));
+}
+
+function SetMakimonoOpenState(is_open)
+{
+    let _wrap = document.getElementById("ui_makimono_wrap");
+    let _toggle = document.getElementById("btn_makimono_toggle");
+    if (!_wrap || !_toggle) { return; }
+
+    _wrap.classList.toggle("is-open", Boolean(is_open));
+    _toggle.setAttribute("aria-expanded", is_open ? "true" : "false");
+}
+
+function ToggleMakimonoScroll()
+{
+    let _wrap = document.getElementById("ui_makimono_wrap");
+    if (!_wrap) { return; }
+    SetMakimonoOpenState(!_wrap.classList.contains("is-open"));
+}
+
+function RenderMakimonoScroll(auto_open_if_unread)
+{
+    let _list_el = document.getElementById("ui_makimono_list");
+    let _sub_el = document.getElementById("ui_makimono_sublabel");
+    let _badge_el = document.getElementById("ui_makimono_unread_badge");
+    let _count_el = document.getElementById("ui_makimono_count_label");
+    let _mark_btn = document.getElementById("btn_makimono_mark_read");
+    if (!_list_el || !_sub_el || !_badge_el || !_count_el || !_mark_btn) { return; }
+
+    let _read_ids = GetReadAnnouncementIds();
+    let _unread_items = dojo_announcements_list.filter(function(_item)
+    {
+        return _read_ids.indexOf(_item.id) === -1;
+    });
+    let _has_unread = (_unread_items.length > 0);
+    let _has_urgent_unread = _unread_items.some(function(_item) { return Boolean(_item.is_urgent); });
+
+    if (dojo_announcements_list.length === 0)
+    {
+        _sub_el.textContent = "Keine aktuellen Mitteilungen (Tippen zum Aufrollen)";
+        _count_el.textContent = "0 Einträge";
+        _badge_el.hidden = true;
+        _mark_btn.textContent = "▲ Schriftrolle einrollen";
+        _list_el.innerHTML = `<div class="makimono-empty">Aktuell liegen keine neuen Dôjô-Mitteilungen vor.<br>Tippe unten, um Eilmeldungen direkt als Push aufs Handy zu erhalten.</div>`;
+    }
+    else
+    {
+        _count_el.textContent = dojo_announcements_list.length + (dojo_announcements_list.length === 1 ? " Mitteilung" : " Mitteilungen");
+
+        if (_has_unread)
+        {
+            _sub_el.textContent = _unread_items.length === 1
+                ? "1 neue Mitteilung wartet"
+                : (_unread_items.length + " neue Mitteilungen warten");
+            _badge_el.hidden = false;
+            _badge_el.textContent = _has_urgent_unread ? "Eilmeldung" : (_unread_items.length + " Neu");
+            _badge_el.classList.toggle("is-urgent", _has_urgent_unread);
+            _mark_btn.textContent = "✔ Gelesen & einrollen";
+        }
+        else
+        {
+            _sub_el.textContent = "Tippen zum Aufrollen";
+            _badge_el.hidden = true;
+            _badge_el.classList.remove("is-urgent");
+            _mark_btn.textContent = "▲ Schriftrolle einrollen";
+        }
+
+        _list_el.innerHTML = dojo_announcements_list.map(function(_a)
+        {
+            let _is_new = (_read_ids.indexOf(_a.id) === -1);
+            let _urgent_cls = _a.is_urgent ? " is-urgent" : "";
+            let _status_pill = _a.is_urgent
+                ? `<span class="makimono-urgent-pill">🚨 Eilmeldung</span>`
+                : (_is_new ? `<span class="makimono-new-pill">Neu</span>` : "");
+            let _meta_left = EscapeHtml(_a.date) + (_a.author ? " • " + EscapeHtml(_a.author) : "");
+
+            return `
+                <article class="makimono-entry${_urgent_cls}">
+                    <div class="makimono-entry-meta">
+                        <span>${_meta_left}</span>
+                        ${_status_pill}
+                    </div>
+                    <h3 class="makimono-entry-title">${EscapeHtml(_a.title)}</h3>
+                    <p class="makimono-entry-body">${EscapeHtml(_a.message)}</p>
+                </article>
+            `;
+        }).join("");
+    }
+
+    if (auto_open_if_unread)
+    {
+        SetMakimonoOpenState(_has_unread);
+    }
+}
+
+function MarkMakimonoAsReadAndRoll()
+{
+    let _read_ids = GetReadAnnouncementIds();
+    let _added_any = false;
+
+    dojo_announcements_list.forEach(function(_item)
+    {
+        if (_read_ids.indexOf(_item.id) === -1)
+        {
+            _read_ids.push(_item.id);
+            _added_any = true;
+        }
+    });
+
+    if (_added_any)
+    {
+        SaveReadAnnouncementIds(_read_ids);
+        ShowToastMessage("📜 Mitteilungen als gelesen markiert.");
+    }
+
+    RenderMakimonoScroll(false);
+    SetMakimonoOpenState(false);
+}
+
+async function PublishDojoAnnouncement()
+{
+    if (is_publishing_announcement) { return; }
+
+    let _title_el = document.getElementById("input_announce_title");
+    let _msg_el = document.getElementById("input_announce_message");
+    let _exp_el = document.getElementById("input_announce_expires");
+    let _urg_el = document.getElementById("input_announce_urgent");
+    let _btn = document.getElementById("btn_publish_announcement");
+
+    let _title = _title_el ? _title_el.value.trim() : "";
+    let _message = _msg_el ? _msg_el.value.trim() : "";
+    let _expires_at = _exp_el ? _exp_el.value.trim() : "";
+    let _is_urgent = Boolean(_urg_el && _urg_el.checked);
+
+    if (_title === "" || _message === "")
+    {
+        ShowToastMessage("⚠️ Bitte Titel und Nachricht eingeben!");
+        return;
+    }
+
+    is_publishing_announcement = true;
+    if (_btn)
+    {
+        _btn.disabled = true;
+        _btn.textContent = _is_urgent ? "⏳ Veröffentliche & sende Push..." : "⏳ Veröffentliche...";
+    }
+
+    try
+    {
+        let _data = await SendAuthenticatedAction("create_announcement", {
+            title: _title,
+            message: _message,
+            expires_at: _expires_at,
+            is_urgent: _is_urgent
+        });
+
+        if (_data && _data.status === "ok")
+        {
+            if (Array.isArray(_data.announcements))
+            {
+                dojo_announcements_list = _data.announcements;
+                RenderMakimonoScroll(true);
+            }
+
+            _title_el.value = "";
+            _msg_el.value = "";
+            _exp_el.value = "";
+            _urg_el.checked = false;
+
+            if (_is_urgent && _data.push_result)
+            {
+                if (_data.push_result.configured)
+                {
+                    ShowToastMessage("🚨 Eilmeldung veröffentlicht & an " + _data.push_result.sent + " Gerät(e) gepusht!");
+                }
+                else
+                {
+                    ShowToastMessage("📜 Eilmeldung gespeichert (Firebase-Keys in Apps Script noch nicht hinterlegt).");
+                }
+            }
+            else
+            {
+                ShowToastMessage("📜 Dôjô-Mitteilung erfolgreich veröffentlicht!");
+            }
+        }
+    }
+    finally
+    {
+        is_publishing_announcement = false;
+        if (_btn)
+        {
+            _btn.disabled = false;
+            _btn.textContent = "Mitteilung veröffentlichen";
+        }
+    }
+}
+
+function GenerateMagicOnboardingQrCode()
+{
+    if (!google_script_api_url)
+    {
+        ShowToastMessage("⚠️ Keine aktive Dôjô-Server-URL vorhanden.");
+        return;
+    }
+
+    let _base_url = window.location.origin + window.location.pathname;
+    current_magic_onboarding_url = _base_url + "?api=" + encodeURIComponent(google_script_api_url);
+
+    let _qr_box = document.getElementById("ui_magic_qr_box");
+    let _result_box = document.getElementById("ui_magic_qr_result_box");
+    if (_qr_box && _result_box)
+    {
+        _qr_box.innerHTML = BuildLocalQrSvgHtml(current_magic_onboarding_url);
+        _result_box.style.display = "block";
+        ShowToastMessage("🪄 Magic-Onboarding-QR lokal erzeugt!");
+    }
+}
+
+async function CopyMagicOnboardingLink()
+{
+    if (!current_magic_onboarding_url) { return; }
+    try
+    {
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function")
+        {
+            await navigator.clipboard.writeText(current_magic_onboarding_url);
+            ShowToastMessage("📋 Magic-Link in die Zwischenablage kopiert!");
+            return;
+        }
+    }
+    catch (_e) {}
+
+    ShowToastMessage("⚠️ Kopieren nicht möglich – bitte QR-Code direkt scannen lassen.");
+}
+
+// =============================================================================
+// FIREBASE CLOUD MESSAGING (FCM - SPARK PLAN)
+// =============================================================================
+
+function IsFirebaseWebConfigReady()
+{
+    return Boolean(
+        firebase_web_config.apiKey &&
+        firebase_web_config.projectId &&
+        firebase_web_config.messagingSenderId &&
+        firebase_web_config.appId &&
+        firebase_vapid_key &&
+        firebase_web_config.apiKey.indexOf("YOUR_FIREBASE_") === -1 &&
+        firebase_web_config.projectId.indexOf("YOUR_FIREBASE_") === -1 &&
+        firebase_vapid_key.indexOf("YOUR_FIREBASE_") === -1
+    );
+}
+
+function IsPushAlreadySubscribed()
+{
+    let _has_notif = (typeof Notification !== "undefined");
+    return Boolean(
+        _has_notif &&
+        Notification.permission === "granted" &&
+        localStorage.getItem("umidanuki_push_subscribed") === "1"
+    );
+}
+
+function UpdatePushButtonVisibility()
+{
+    let _btn = document.getElementById("btn_enable_push");
+    if (!_btn) { return; }
+
+    let _supported = (typeof Notification !== "undefined" && "serviceWorker" in navigator);
+    if (!_supported || IsPushAlreadySubscribed())
+    {
+        _btn.hidden = true;
+        return;
+    }
+
+    _btn.hidden = false;
+    if (Notification.permission === "denied")
+    {
+        _btn.textContent = "🔕 Push im Browser blockiert (in Einstellungen erlauben)";
+        _btn.disabled = true;
+    }
+    else
+    {
+        _btn.textContent = "🔔 Push-Mitteilungen für Eilmeldungen aktivieren";
+        _btn.disabled = false;
+    }
+}
+
+function EnsureFirebaseMessagingInstance()
+{
+    if (firebase_messaging_instance) { return firebase_messaging_instance; }
+    if (typeof firebase === "undefined" || !IsFirebaseWebConfigReady()) { return null; }
+
+    if (!firebase.apps || firebase.apps.length === 0)
+    {
+        firebase.initializeApp(firebase_web_config);
+    }
+    if (typeof firebase.messaging === "function")
+    {
+        firebase_messaging_instance = firebase.messaging();
+    }
+    return firebase_messaging_instance;
+}
+
+function InitializeFirebaseForegroundHandler()
+{
+    try
+    {
+        let _messaging = EnsureFirebaseMessagingInstance();
+        if (!_messaging || _messaging._umidanuki_bound) { return; }
+
+        _messaging._umidanuki_bound = true;
+        _messaging.onMessage(function(_payload)
+        {
+            let _notif = (_payload && _payload.notification) ? _payload.notification : {};
+            let _title = _notif.title || "Dôjô-Eilmeldung";
+            let _body = _notif.body || "";
+            ShowToastMessage(_title + (_body ? ": " + _body : ""));
+        });
+    }
+    catch (_e) {}
+}
+
+async function EnableDojoPushNotifications()
+{
+    if (is_enabling_push) { return; }
+
+    if (typeof Notification === "undefined" || !("serviceWorker" in navigator))
+    {
+        ShowToastMessage("⚠️ Push-Mitteilungen werden von diesem Browser nicht unterstützt.");
+        return;
+    }
+
+    if (!IsFirebaseWebConfigReady())
+    {
+        ShowToastMessage("⚠️ Firebase-Konfiguration (firebase_web_config & VAPID-Key) noch nicht eingetragen.");
+        return;
+    }
+
+    if (typeof firebase === "undefined" || typeof firebase.messaging !== "function")
+    {
+        ShowToastMessage("⚠️ Firebase Messaging SDK konnte nicht geladen werden (offline?).");
+        return;
+    }
+
+    is_enabling_push = true;
+    let _btn = document.getElementById("btn_enable_push");
+    if (_btn)
+    {
+        _btn.disabled = true;
+        _btn.textContent = "⏳ Aktiviere Push-Mitteilungen...";
+    }
+
+    try
+    {
+        let _permission = await Notification.requestPermission();
+        if (_permission !== "granted")
+        {
+            ShowToastMessage("🔕 Benachrichtigungen wurden nicht erlaubt.");
+            UpdatePushButtonVisibility();
+            return;
+        }
+
+        let _sw_reg = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
+        await navigator.serviceWorker.ready;
+
+        let _messaging = EnsureFirebaseMessagingInstance();
+        if (!_messaging)
+        {
+            ShowToastMessage("⚠️ Firebase Messaging konnte nicht initialisiert werden.");
+            return;
+        }
+
+        let _device_token = await _messaging.getToken({
+            vapidKey: firebase_vapid_key,
+            serviceWorkerRegistration: _sw_reg
+        });
+
+        if (!_device_token)
+        {
+            ShowToastMessage("⚠️ Kein Push-Token vom Browser erhalten.");
+            return;
+        }
+
+        let _reg_res = await SendAuthenticatedAction("register_fcm_token", {
+            fcm_token: _device_token
+        });
+
+        if (_reg_res && _reg_res.status === "ok")
+        {
+            localStorage.setItem("umidanuki_push_subscribed", "1");
+            InitializeFirebaseForegroundHandler();
+            UpdatePushButtonVisibility();
+            ShowToastMessage("🔔 Push-Mitteilungen für Dôjô-Eilmeldungen aktiviert!");
+        }
+    }
+    catch (_err)
+    {
+        ShowToastMessage("⚠️ Push-Aktivierung fehlgeschlagen (prüfe HTTPS & Firebase-Keys).");
+    }
+    finally
+    {
+        is_enabling_push = false;
+        UpdatePushButtonVisibility();
     }
 }
 
