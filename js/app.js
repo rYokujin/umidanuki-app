@@ -32,20 +32,13 @@ let current_magic_onboarding_url = "";
 let firebase_messaging_instance = null;
 
 // =============================================================================
-// FIREBASE WEB PUSH CONFIG (SPARK PLAN - PUBLIC CLIENT IDENTIFIERS ONLY)
+// FIREBASE WEB PUSH CONFIG (LOADED AT RUNTIME FROM AUTHENTICATED BACKEND ONLY)
+// Zero hardcoded API keys in public frontend repository
 // =============================================================================
 
-const firebase_web_config = {
-    apiKey: "AIzaSyAheAyR5fPJ78niutzhPcOa1iCHPiHaEAM",
-    authDomain: "umidanuki-app.firebaseapp.com",
-    projectId: "umidanuki-app",
-    storageBucket: "umidanuki-app.firebasestorage.app",
-    messagingSenderId: "1092621337066",
-    appId: "1:1092621337066:web:5e668f204fa65c4cc2b293"
-};
-
-// Public Web Push certificate key pair (starts with "B...", 87 chars)
-const firebase_vapid_key = "BBfC23fgiz-LjQjQirqIARsSNhAK_VH_zt8XrwyC9AT4RGTWkKgZp7QmHjjnMiWgA4zRPQkuLCv3GNKiSx9Gel4";
+let firebase_web_config = null;
+let firebase_vapid_key = "";
+let is_sw_push_message_listener_bound = false;
 
 let selected_training_unit = "Senpai-Training";
 let selected_session_tags = ["Kihon Happô", "Gyokko Ryû", "Hanbô"];
@@ -522,6 +515,12 @@ function ApplyAuthenticatedBootstrapData(server_data, show_welcome_toast)
     active_member_id = _own.id;
     dojo_members_data[_own.id] = Object.assign(dojo_members_data[_own.id] || {}, _own);
 
+    // Sync local subscription flag with server-side FCM_Tokens so users can re-subscribe if sheet was cleared
+    if (typeof _own.has_fcm_token === "boolean" && !_own.has_fcm_token)
+    {
+        localStorage.removeItem("umidanuki_push_subscribed");
+    }
+
     if (server_data.dojo_dam)
     {
         dojo_dam_stage = server_data.dojo_dam.dam_stage || 1;
@@ -532,6 +531,12 @@ function ApplyAuthenticatedBootstrapData(server_data, show_welcome_toast)
     dojo_announcements_list = Array.isArray(server_data.announcements) ? server_data.announcements : [];
     is_backend_co_trainer_supported = Array.isArray(server_data.co_trainers);
     co_trainers_list = is_backend_co_trainer_supported ? server_data.co_trainers : [];
+
+    if (server_data.firebase_config && server_data.firebase_config.web_config)
+    {
+        firebase_web_config = server_data.firebase_config.web_config;
+        firebase_vapid_key = String(server_data.firebase_config.vapid_key || "").trim();
+    }
 
     ApplyTrainerPermissions(Boolean(_own.is_trainer));
     document.getElementById("ui_login_screen").classList.add("hidden");
@@ -794,6 +799,8 @@ function ResetLocalSessionUi()
     dojo_announcements_list = [];
     co_trainers_list = [];
     is_backend_co_trainer_supported = true;
+    firebase_web_config = null;
+    firebase_vapid_key = "";
     current_magic_onboarding_url = "";
     let _co_box = document.getElementById("ui_co_trainer_box");
     if (_co_box) { _co_box.innerHTML = ""; }
@@ -2860,13 +2867,26 @@ async function PublishDojoAnnouncement()
 
             if (_is_urgent && _data.push_result)
             {
-                if (_data.push_result.configured)
+                let _pr = _data.push_result;
+                if (!_pr.configured)
                 {
-                    ShowToastMessage("🚨 Eilmeldung veröffentlicht & an " + _data.push_result.sent + " Gerät(e) gepusht!");
+                    ShowToastMessage("📜 Eilmeldung gespeichert (Firebase Script-Properties in Apps Script fehlen noch).");
+                }
+                else if (_pr.sent > 0)
+                {
+                    ShowToastMessage("🚨 Eilmeldung veröffentlicht & an " + _pr.sent + " Gerät(e) gepusht!");
+                }
+                else if (_pr.last_error)
+                {
+                    ShowToastMessage("⚠️ Eilmeldung gespeichert, Push-Fehler: " + _pr.last_error);
+                }
+                else if (_pr.total_tokens === 0)
+                {
+                    ShowToastMessage("📜 Eilmeldung gespeichert – noch keine Handys für Push registriert (in der Schriftrolle aktivieren).");
                 }
                 else
                 {
-                    ShowToastMessage("📜 Eilmeldung gespeichert (Firebase-Keys in Apps Script noch nicht hinterlegt).");
+                    ShowToastMessage("⚠️ Eilmeldung gespeichert, aber 0 Geräte erreicht.");
                 }
             }
             else
@@ -2931,6 +2951,7 @@ async function CopyMagicOnboardingLink()
 function IsFirebaseWebConfigReady()
 {
     return Boolean(
+        firebase_web_config &&
         firebase_web_config.apiKey &&
         firebase_web_config.projectId &&
         firebase_web_config.messagingSenderId &&
@@ -2997,17 +3018,20 @@ function InitializeFirebaseForegroundHandler()
 {
     try
     {
-        let _messaging = EnsureFirebaseMessagingInstance();
-        if (!_messaging || _messaging._umidanuki_bound) { return; }
-
-        _messaging._umidanuki_bound = true;
-        _messaging.onMessage(function(_payload)
+        if (!is_sw_push_message_listener_bound && "serviceWorker" in navigator)
         {
-            let _notif = (_payload && _payload.notification) ? _payload.notification : {};
-            let _title = _notif.title || "Dôjô-Eilmeldung";
-            let _body = _notif.body || "";
-            ShowToastMessage(_title + (_body ? ": " + _body : ""));
-        });
+            is_sw_push_message_listener_bound = true;
+            navigator.serviceWorker.addEventListener("message", function(_ev)
+            {
+                let _msg = _ev && _ev.data;
+                if (_msg && _msg.type === "DOJO_PUSH")
+                {
+                    let _t = _msg.title || "Dôjô-Eilmeldung";
+                    let _b = _msg.body || "";
+                    ShowToastMessage(_t + (_b ? ": " + _b : ""));
+                }
+            });
+        }
     }
     catch (_e) {}
 }
@@ -3024,7 +3048,7 @@ async function EnableDojoPushNotifications()
 
     if (!IsFirebaseWebConfigReady())
     {
-        ShowToastMessage("⚠️ Firebase-Konfiguration (firebase_web_config & VAPID-Key) noch nicht eingetragen.");
+        ShowToastMessage("⚠️ Firebase-Konfiguration fehlt vom Backend – bitte Code.gs in Apps Script als Neue Version bereitstellen.");
         return;
     }
 
@@ -3052,7 +3076,7 @@ async function EnableDojoPushNotifications()
             return;
         }
 
-        let _sw_reg = await navigator.serviceWorker.register("./firebase-messaging-sw.js");
+        let _sw_reg = await navigator.serviceWorker.register("./firebase-messaging-sw.js", { scope: "./" });
         await navigator.serviceWorker.ready;
 
         let _messaging = EnsureFirebaseMessagingInstance();
@@ -3080,6 +3104,10 @@ async function EnableDojoPushNotifications()
         if (_reg_res && _reg_res.status === "ok")
         {
             localStorage.setItem("umidanuki_push_subscribed", "1");
+            if (active_member_id && dojo_members_data[active_member_id])
+            {
+                dojo_members_data[active_member_id].has_fcm_token = true;
+            }
             InitializeFirebaseForegroundHandler();
             UpdatePushButtonVisibility();
             ShowToastMessage("🔔 Push-Mitteilungen für Dôjô-Eilmeldungen aktiviert!");
@@ -3087,7 +3115,8 @@ async function EnableDojoPushNotifications()
     }
     catch (_err)
     {
-        ShowToastMessage("⚠️ Push-Aktivierung fehlgeschlagen (prüfe HTTPS & Firebase-Keys).");
+        let _reason = (_err && (_err.code || _err.message)) ? String(_err.code || _err.message).substring(0, 90) : "Unbekannter Fehler";
+        ShowToastMessage("⚠️ Push-Aktivierung fehlgeschlagen: " + _reason);
     }
     finally
     {
