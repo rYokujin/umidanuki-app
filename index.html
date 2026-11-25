@@ -9,15 +9,15 @@
     <title>Bujinkan Umidanuki Dôjô App</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="sprites/spr_dojo_logo.png">
-    <link rel="stylesheet" href="css/style.css?v=20261125">
+    <link rel="stylesheet" href="css/style.css?v=20261125c">
     <!-- Lightweight QR Camera Scanner Library (Pinned + Subresource Integrity) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" integrity="sha384-c9d8RFSL+u3exBOJ4Yp3HUJXS4znl9f+z66d1y54ig+ea249SpqR+w1wyvXz/lk+" crossorigin="anonymous" defer></script>
     <!-- Firebase Cloud Messaging Compat SDK (Spark Plan) -->
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js" defer></script>
-    <script src="js/questions.js?v=20261125" defer></script>
-    <script src="js/shuriken.js?v=20261125" defer></script>
-    <script src="js/app.js?v=20261125" defer></script>
+    <script src="js/questions.js?v=20261125c" defer></script>
+    <script src="js/shuriken.js?v=20261125c" defer></script>
+    <script src="js/app.js?v=20261125c" defer></script>
 </head>
 <body>
 
@@ -388,10 +388,38 @@
          ================================================================= -->
     <section id="view_nafuda" class="view-section" role="tabpanel" aria-labelledby="tab_btn_nafuda">
         <div class="nafudakake-board">
-            <div class="nafuda-row" id="nafuda_row_1"></div>
-            <div class="nafuda-row" id="nafuda_row_2"></div>
-            <div class="nafuda-row" id="nafuda_row_3"></div>
-            <div class="nafuda-row" id="nafuda_row_4"></div>
+            <div class="nafuda-row-shell">
+                <div class="nafuda-back-ties" aria-hidden="true">
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                </div>
+                <div class="nafuda-row" id="nafuda_row_1"></div>
+            </div>
+            <div class="nafuda-row-shell">
+                <div class="nafuda-back-ties" aria-hidden="true">
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                </div>
+                <div class="nafuda-row" id="nafuda_row_2"></div>
+            </div>
+            <div class="nafuda-row-shell">
+                <div class="nafuda-back-ties" aria-hidden="true">
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                </div>
+                <div class="nafuda-row" id="nafuda_row_3"></div>
+            </div>
+            <div class="nafuda-row-shell">
+                <div class="nafuda-back-ties" aria-hidden="true">
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                    <div class="tie-col"><span>✖</span><span>✖</span></div>
+                </div>
+                <div class="nafuda-row" id="nafuda_row_4"></div>
+            </div>
         </div>
 
         <!-- Monthly Nafuda Customization Workshop (5 Portrait Options per Category) -->
@@ -428,7 +456,7 @@
     </section>
 
     <!-- =================================================================
-         TAB 3: KUDEN (QUIZ, 100:1 EXCHANGE & SHURIKEN WOOD-SPLITTER)
+         TAB 3: KUDEN (QUIZ, 500:1 EXCHANGE & SHURIKEN WOOD-SPLITTER)
          ================================================================= -->
     <section id="view_quiz" class="view-section" role="tabpanel" aria-labelledby="tab_btn_quiz">
         <div class="card card-accent">
@@ -447,14 +475,14 @@
 
         <div class="card">
             <h2 class="card-title">
-                <span>🔄 Kuden in Taiden umwandeln (100 : 1)</span>
+                <span>🔄 Kuden in Taiden umwandeln (500 : 1)</span>
                 <span class="card-meta-gold"><span id="ui_exchange_kuden">0</span> 📜 verfügbar</span>
             </h2>
             <p class="card-sub">
-                Tausche je <strong>100 Kuden XP</strong> in <strong>1 Taiden XP (🪵)</strong> um, um damit den gemeinsamen Dôjô Damm weiter auszubauen:
+                Tausche je <strong>500 Kuden XP</strong> in <strong>1 Taiden XP (🪵)</strong> um, um damit den gemeinsamen Dôjô Damm weiter auszubauen:
             </p>
             <button type="button" class="btn btn-gold" id="btn_exchange_kuden">
-                🪵 100 Kuden XP ➔ +1 Taiden XP tauschen
+                🪵 500 Kuden XP ➔ +1 Taiden XP tauschen
             </button>
         </div>
 

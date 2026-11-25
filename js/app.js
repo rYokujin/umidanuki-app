@@ -21,6 +21,8 @@ let is_action_in_flight = false;
 let dojo_dam_stage = 1;
 let dam_stage_current_xp = 0;
 const dam_stage_required_xp = 10;
+const kuden_exchange_cost = 500;
+const sprite_cache_version = "20261125c";
 let is_trainer_dam_preview_active = false;
 let active_member_id = "";
 let dojo_members_data = {};
@@ -1034,6 +1036,18 @@ function SwitchTab(target_view_id, nav_btn_element)
             document.title = _tab_text + " | Bujinkan Umidanuki Dôjô";
         }
     }
+
+    // Reset viewport scroll position to top when switching views
+    try
+    {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+    catch (_e)
+    {
+        window.scrollTo(0, 0);
+    }
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
 }
 
 function UpdateTopHeaderUI()
@@ -1177,17 +1191,6 @@ function DetermineMemberRowNumber(member_obj)
     return 4;
 }
 
-function CreateBackTiesMarkup()
-{
-    return `
-        <div class="nafuda-back-ties" aria-hidden="true">
-            <div class="tie-col"><span>✖</span><span>✖</span></div>
-            <div class="tie-col"><span>✖</span><span>✖</span></div>
-            <div class="tie-col"><span>✖</span><span>✖</span></div>
-        </div>
-    `;
-}
-
 function RenderNafudakakeBoard()
 {
     let _row_elements = {
@@ -1197,12 +1200,10 @@ function RenderNafudakakeBoard()
         4: document.getElementById("nafuda_row_4")
     };
 
-    let _ties_html = CreateBackTiesMarkup();
-
-    _row_elements[1].innerHTML = _ties_html + `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">指導士</div><div class="nafuda-stripe stripe-dan"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">SHIDÔSHI</div></div>`;
-    _row_elements[2].innerHTML = _ties_html + `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">先輩・後輩</div><div class="nafuda-stripe stripe-green"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">SENPAI &amp;<br>KÔHAI</div></div>`;
-    _row_elements[3].innerHTML = _ties_html + `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">少年部</div><div class="nafuda-stripe stripe-yellow"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">KIDS<br>GELB</div></div>`;
-    _row_elements[4].innerHTML = _ties_html + `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">白帯</div><div class="nafuda-stripe stripe-white"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">WEISSER<br>GÜRTEL</div></div>`;
+    _row_elements[1].innerHTML = `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">指導士</div><div class="nafuda-stripe stripe-dan"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">SHIDÔSHI</div></div>`;
+    _row_elements[2].innerHTML = `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">先輩・後輩</div><div class="nafuda-stripe stripe-green"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">SENPAI &amp;<br>KÔHAI</div></div>`;
+    _row_elements[3].innerHTML = `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">少年部</div><div class="nafuda-stripe stripe-yellow"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">KIDS<br>GELB</div></div>`;
+    _row_elements[4].innerHTML = `<div class="nafuda-plaque rank-divider"><div class="nafuda-jp">白帯</div><div class="nafuda-stripe stripe-white"></div><div class="nafuda-stamp-slot"></div><div class="nafuda-romaji">WEISSER<br>GÜRTEL</div></div>`;
 
     let _members_array = Object.keys(dojo_members_data).map(function(_k)
     {
@@ -1583,7 +1584,7 @@ function TryLoadCustomDamSprite(stage_num)
 {
     let _sprite_img = document.getElementById("ui_custom_dam_sprite");
     let _svg_stage = document.querySelector(".svg-stage");
-    let _sprite_path = "sprites/spr_dam_lvl_" + stage_num + ".png";
+    let _sprite_path = "sprites/spr_dam_lvl_" + stage_num + ".png?v=" + sprite_cache_version;
     let _req_id = ++dam_sprite_request_id;
 
     if (dam_sprite_availability_cache[_sprite_path] === false)
@@ -1820,9 +1821,9 @@ async function ExchangeKudenToTaiden()
     let _m = dojo_members_data[active_member_id];
     if (!_m) { return; }
 
-    if (_m.kuden_xp < 100)
+    if (_m.kuden_xp < kuden_exchange_cost)
     {
-        ShowToastMessage("⚠️ Du benötigst 100 Kuden XP für den 100:1-Tausch!");
+        ShowToastMessage("⚠️ Du benötigst " + kuden_exchange_cost + " Kuden XP für den " + kuden_exchange_cost + ":1-Tausch!");
         return;
     }
 
@@ -1836,7 +1837,7 @@ async function ExchangeKudenToTaiden()
         if (_data && _data.status === "ok")
         {
             ApplyAuthoritativeBalances(_data.own_balances);
-            ShowToastMessage("🔄 100 Kuden XP ➔ +1 Taiden XP getauscht!");
+            ShowToastMessage("🔄 " + kuden_exchange_cost + " Kuden XP ➔ +1 Taiden XP getauscht!");
         }
     }
     finally
@@ -2914,7 +2915,7 @@ function GenerateMagicOnboardingQrCode()
         return;
     }
 
-    let _base_url = window.location.origin + window.location.pathname;
+    let _base_url = (window.location.origin + window.location.pathname).replace(/\/index\.html$/i, "/");
     current_magic_onboarding_url = _base_url + "?api=" + encodeURIComponent(google_script_api_url);
 
     let _qr_box = document.getElementById("ui_magic_qr_box");
